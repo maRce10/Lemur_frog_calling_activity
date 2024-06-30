@@ -38,7 +38,7 @@ editor_options:
 
 ::: {.alert .alert-warning}
 
-# Instructions {.unnumbered .unlisted}
+# Getting started {.unnumbered .unlisted}
 
 - The only input data needed is the  file 'acoustic_and_climatic_data_by_hour.csv' which has been shared as supplementary data
 
@@ -55,8 +55,8 @@ This flowchart depicts the data analysis steps described in this report:
 ```{mermaid}
 
 flowchart
-  A[Define DAG] --> B(24 hours previous rain) 
-  A --> C(48 hours previous rain)
+  A[Define DAG] --> B(24 hours prior rain) 
+  A --> C(48 hours prior rain)
   B --> D(Define adjustment sets for each predictor)
   C --> D
   D --> E(Run all models satisfying\nthe back door criterion)
@@ -110,11 +110,21 @@ pkgs <-
 
 # install/ load packages
 sketchy::load_packages(packages = pkgs)
-  
-options("digits" = 6, "digits.secs" = 5, knitr.table.format = "html") 
+
+options(
+  "digits" = 6,
+  "digits.secs" = 5,
+  knitr.table.format = "html"
+)
 
 # set evaluation false
-opts_chunk$set(fig.width = 10, fig.height = 6, warning = FALSE, message = FALSE, tidy = TRUE)
+opts_chunk$set(
+  fig.width = 10,
+  fig.height = 6,
+  warning = FALSE,
+  message = FALSE,
+  tidy = TRUE
+)
 
 # set working directory as project directory or one directory above,
 opts_knit$set(root.dir = "..")
@@ -137,7 +147,7 @@ adjustment_set_formulas <-
            formula_parts = c(outcome),
            latent  = NULL,
            remove = NULL,
-           plot = TRUE, 
+           plot = TRUE,
            ...) {
     if (plot)
       gg <- ggdag_adjustment_set(
@@ -168,8 +178,7 @@ adjustment_set_formulas <-
           " + ",
           paste(x, collapse =  " + "),
           if (length(formula_parts) == 2)
-            formula_parts[2]
-          else
+            formula_parts[2] else
             NULL
         )
       
@@ -188,17 +197,13 @@ adjustment_set_formulas <-
     names(form_set) <- seq_along(form_set)
     
     # add formula as attribute
-    attributes(form_set)$exposure.formula <- paste(formula_parts[1],
-                                                   " ~ ",
-                                                   exposure,
-                                                   if (length(formula_parts) == 2)
-                                                     formula_parts[2]
-                                                   else
-                                                     NULL)
+    attributes(form_set)$exposure.formula <- paste(formula_parts[1], " ~ ", exposure, if (length(formula_parts) == 2)
+      formula_parts[2] else
+        NULL)
     
     if (plot)
-    return(gg) else
-    return(form_set)
+      return(gg) else
+      return(form_set)
   }
 
 # Define a function to remove special characters
@@ -224,16 +229,15 @@ averaged_model <-
            suffix = NULL,
            cores = 1,
            name = NULL) {
-    if (dir.exists(file.path(path, name))){
+    if (dir.exists(file.path(path, name))) {
       cat("Directory already existed. Attempting to fit missing models\n")
-    cat("Fitting models (step 1 out of 2) ...")
+      cat("Fitting models (step 1 out of 2) ...")
     } else
-    dir.create(path = file.path(path, name))
+      dir.create(path = file.path(path, name))
     
     cat("Fitting models (step 1 out of 2) ...")
     fit_list <-
       pblapply_brmsish_int(X = formulas, cl = cores, function(y) {
-        
         # make file name without special characters
         mod_name <-
           paste0(remove_special_chars(as.character(y)), ".RDS")
@@ -260,38 +264,40 @@ averaged_model <-
         return(fit)
       })
     
-    if (length(formulas) > 1){
-    cat("Averaging models (step 2 out of 2) ...")
-    average_call <-
-      parse(text = paste("pa(",
-                         paste(
-                           paste0("fit_list[[", seq_along(fit_list), "]]"), collapse = ", "
-                         ),
-                         ", ndraws = ",
-                         ndraws,
-                         ")"))
-    
-    # Evaluate the expression to create the call object
-    average_eval <- eval(average_call)
-    
-    # add formula as attribute
-    attributes(average_eval)$averaged_fit_formulas <- formulas
-    
-    rds_name <- if (is.null(suffix)) file.path(path, paste0(name, ".RDS")) else
-      file.path(path, paste0(suffix, "_", name, ".RDS"))
-    
-    if (save.files)
-      saveRDS(average_eval, file = rds_name)
-    
-    # return draws from average models
-    return(average_eval)
-    } else 
-    cat("No model averaging conducted as a single formula was supplied")
+    if (length(formulas) > 1) {
+      cat("Averaging models (step 2 out of 2) ...")
+      average_call <-
+        parse(text = paste(
+          "pa(",
+          paste(paste0(
+            "fit_list[[", seq_along(fit_list), "]]"
+          ), collapse = ", "),
+          ", ndraws = ",
+          ndraws,
+          ")"
+        ))
+      
+      # Evaluate the expression to create the call object
+      average_eval <- eval(average_call)
+      
+      # add formula as attribute
+      attributes(average_eval)$averaged_fit_formulas <- formulas
+      
+      rds_name <- if (is.null(suffix))
+        file.path(path, paste0(name, ".RDS")) else
+        file.path(path, paste0(suffix, "_", name, ".RDS"))
+      
+      if (save.files)
+        saveRDS(average_eval, file = rds_name)
+      
+      # return draws from average models
+      return(average_eval)
+    } else
+      cat("No model averaging conducted as a single formula was supplied")
   }
 
-# function to convert effect sizes to percentage of change 
-to_change_percentage <- function(x){
-  
+# function to convert effect sizes to percentage of change
+to_change_percentage <- function(x) {
   (exp(x) - 1) * 100
   
 }
@@ -307,17 +313,16 @@ draw_extended_summary <- function(draws,
                                   gsub.replacement = NULL,
                                   xlab = "Effect size",
                                   ylab = "Parameter") {
-
   # create objects just to avoid errors with ggplot functions when checking package
   position_dodge <- org.variable <- value <- significance <- `l-95% CI` <- `u-95% CI` <- theme <- unit <- NULL
-
+  
   if (!is.null(by)) {
     levels <- draws[, by]
-
+    
     unique_levels <- unique(levels)
   } else
     unique_levels <- ".A"
-
+  
   # run loop over each level (or just the single "level")
   results_list <- lapply(unique_levels, function(x) {
     if (identical(unique_levels, ".A")) {
@@ -327,7 +332,7 @@ draw_extended_summary <- function(draws,
       draws <-
         draws[draws[, by, drop = TRUE] == x, grep("^b_", names(draws), value = TRUE)]
     }
-
+    
     # remove intercept betas
     if (remove.intercepts)
       draws <-
@@ -335,62 +340,57 @@ draw_extended_summary <- function(draws,
                      names(draws),
                      value = TRUE,
                      invert = TRUE), drop = FALSE]
-
+    
     # compute model-averaged posteriors of overlapping parameters
-    coef_table <-
-      posterior::summarise_draws(draws,
-                                 median,
-                                 ~ quantile(.x, probs = c(0.025, 0.975)),
-                                 posterior::default_convergence_measures())
-
+    coef_table <- posterior::summarise_draws(
+        draws,
+        median,
+        ~ quantile(.x, probs = c(0.025, 0.975)),
+        posterior::default_convergence_measures()
+      )
+    
     names(coef_table)[3:4] <- c("l-95% CI", "u-95% CI")
-
+    
     coef_table$value <- coef_table$median
     coef_table$significance <-
-      ifelse(coef_table$`l-95% CI` * coef_table$`u-95% CI` > 0,
-             "sig",
-             "non-sig")
+      ifelse(coef_table$`l-95% CI` * coef_table$`u-95% CI` > 0, "sig", "non-sig")
     coef_table$significance <-
       factor(coef_table$significance, levels = c("non-sig", "sig"))
-
-
+    
+    
     if (ncol(draws) > 1)
       sdraws <-
-      stack(draws[, grep("^b_", names(draws), value = TRUE)], ind = "levels")
-    else
+      stack(draws[, grep("^b_", names(draws), value = TRUE)], ind = "levels") else
       sdraws <-
       data.frame(value = draws[, 1], variable = names(draws))
-
+    
     names(sdraws) <- c("value", "variable")
-
+    
     sdraws$significance <-
       sapply(sdraws$variable, function(x)
         coef_table$significance[as.character(coef_table$variable) == x][1])
-
+    
     # add level
-    # if (!identical(unique_levels, ".A")) {
-    # to coef_table
     coef_table$.new.column <- x
     names(coef_table)[ncol(coef_table)] <- "levels"
-
+    
     #to sdraws
     sdraws$.new.column <- x
     names(sdraws)[ncol(sdraws)] <- "levels"
-    # }
-
+    
     output <- list(coef_table = coef_table, sdraws = sdraws)
-
+    
     return(output)
   })
-
+  
   # put both results into a single data frame
   coef_table <- do.call(rbind, lapply(results_list, "[[", 1))
   sdraws <- do.call(rbind, lapply(results_list, "[[", 2))
-
+  
   if (!is.null(gsub.pattern) & !is.null(gsub.replacement)) {
     if (length(gsub.pattern) != length(gsub.replacement))
       stop2("'gsub.replacement' and 'gsub.pattern' must have the same length")
-
+    
     for (i in 1:length(gsub.pattern)) {
       sdraws$variable <-
         gsub(pattern = gsub.pattern[i],
@@ -403,44 +403,54 @@ draw_extended_summary <- function(draws,
     }
   }
 
-
   # duplicate variable column
   coef_table <- as.data.frame(coef_table)
   coef_table$org.variable <- coef_table$variable
   sdraws$org.variable <- sdraws$variable
-
-  if (!identical(unique_levels, ".A")){
+  
+  if (!identical(unique_levels, ".A")) {
     coef_table$variable <- paste(coef_table$levels, coef_table$variable, sep = "-")
     coef_table <- coef_table[order(coef_table$org.variable), ]
-
+    
     sdraws$variable <- paste(sdraws$levels, sdraws$variable, sep = "-")
   }
-
+  
   rownames(coef_table) <- coef_table$variable
-
+  
   fill_df <- data.frame(level = unique_levels, fill = fill)
-
+  
   if (!identical(unique_levels, ".A"))
-    coef_table$fill_values <- sapply(coef_table$levels, function(x) fill_df$fill[fill_df$level == x]) else
-      coef_table$fill_values <- fill[1]
-
+    coef_table$fill_values <- sapply(coef_table$levels, function(x)
+      fill_df$fill[fill_df$level == x]) else
+    coef_table$fill_values <- fill[1]
+  
   if (highlight)
   {
     coef_table$col_pointrange <-
       ifelse(coef_table$significance == "non-sig", "gray", "black")
 
-    # coef_table$fill_values <- ifelse(coef_table$significance == "no-sig", grDevices::adjustcolor(col = coef_table$fill_values, alpha.f = 0.5), coef_table$fill_values)
-    sdraws$significance <- sapply(sdraws$variable, function(x) coef_table$significance[coef_table$variable == x])
+    sdraws$significance <- sapply(sdraws$variable, function(x)
+      coef_table$significance[coef_table$variable == x])
   }  else  {
     coef_table$col_pointrange <- rep("black", nrow(coef_table))
     sdraws$significance <- 1
   }
-
+  
   pd <- position_dodge(width = 0.05)
-
+  
   # creat plots
   gg_distributions <-
-    ggplot2::ggplot(data = sdraws, ggplot2::aes(y = org.variable, x = value, fill = levels, alpha = if(highlight) significance else NULL)) +
+    ggplot2::ggplot(
+      data = sdraws,
+      ggplot2::aes(
+        y = org.variable,
+        x = value,
+        fill = levels,
+        alpha = if (highlight)
+          significance else
+          NULL
+      )
+    ) +
     ggplot2::geom_vline(xintercept = 0,
                         col = "black",
                         lty = 2) +
@@ -448,9 +458,13 @@ draw_extended_summary <- function(draws,
       ggplot2::aes(x = value),
       .width = c(.95),
       normalize = "panels",
-      color = "transparent", position = pd) +
+      color = "transparent",
+      position = pd
+    ) +
     ggplot2::scale_alpha_manual(values = c(0.4, 0.8), guide = 'none') +
-    ggplot2::scale_fill_manual(values = if (!identical(unique_levels, ".A")) as.vector(coef_table$fill_values) else fill[1]) +
+    ggplot2::scale_fill_manual(values = if (!identical(unique_levels, ".A"))
+      as.vector(coef_table$fill_values) else
+        fill[1]) +
     ggplot2::geom_point(data = coef_table, position = pd) +
     ggplot2::geom_errorbar(
       data = coef_table,
@@ -458,9 +472,7 @@ draw_extended_summary <- function(draws,
       width = 0,
       position = pd
     ) +
-    ggplot2::facet_wrap(~ org.variable,
-                        scales = "free_y",
-                        ncol = 1) +
+    ggplot2::facet_wrap( ~ org.variable, scales = "free_y", ncol = 1) +
     ggplot2::theme_classic() +
     ggplot2::theme(
       axis.ticks.length = ggplot2::unit(0, "pt"),
@@ -470,36 +482,33 @@ draw_extended_summary <- function(draws,
       strip.text = ggplot2::element_blank()
     ) +
     ggplot2::labs(x = xlab, y = ylab, fill = "Effect") +
-    theme(
-      panel.spacing.y = unit(0, "null")  # no vertical space between panels
-    )
-
-    coef_table$variable <-
-      coef_table$significance <-  coef_table$value <- NULL
-    names(coef_table) <-
-      c("Estimate",
-        "l-95% CI",
-        "u-95% CI",
-        "Rhat",
-        "Bulk_ESS",
-        "Tail_ESS")
-
-    coef_table <- coef_table[, c("Estimate",
-                                 "l-95% CI",
-                                 "u-95% CI",
-                                 "Rhat",
-                                 "Bulk_ESS",
-                                 "Tail_ESS")]
-
-  if (!is.null(name))
-    cat('\n\n## ', name, '\n\n')
-
-  html_coef_table <-
-    brmsish:::html_format_coef_table(coef_table, fill = fill,  highlight = highlight)
-
-  print(html_coef_table)
-
-  print(gg_distributions)
+    theme(panel.spacing.y = unit(0, "null"))
+          
+          coef_table$variable <- coef_table$significance <- coef_table$value <- NULL
+          names(coef_table) <-
+            c("Estimate",
+              "l-95% CI",
+              "u-95% CI",
+              "Rhat",
+              "Bulk_ESS",
+              "Tail_ESS")
+          
+          coef_table <- coef_table[, c("Estimate",
+                                       "l-95% CI",
+                                       "u-95% CI",
+                                       "Rhat",
+                                       "Bulk_ESS",
+                                       "Tail_ESS")]
+          
+          if (!is.null(name))
+            cat('\n\n## ', name, '\n\n')
+          
+          html_coef_table <-
+            brmsish:::html_format_coef_table(coef_table, fill = fill, highlight = highlight)
+          
+          print(html_coef_table)
+          
+          print(gg_distributions)
 }
 
 
@@ -516,9 +525,6 @@ This is the path were the supplementary data is saved and were the output files 
 #| 
 # Set working directory 
 path <- "PUT_WORKING_DIRECTORY_PATH_HERE"
-
-# create directory for single models
-dir.create(file.path(path, "single_models"))
 
 # create directory for average models
 dir.create(file.path(path, "averaged_models"))
@@ -547,14 +553,33 @@ Describe environmental variables:
 ```{r}
 #| output: asis
 
-agg <- aggregate(cbind(temp, prev_temp, HR, rain, rain_24, rain_48, moonlight)~1, call_rate_hour, function(x) round(c(mean(x), sd(x), min(x), max(x)), 3))
+agg <- aggregate(cbind(temp, prev_temp, HR, rain, rain_24, rain_48, moonlight) ~
+                   1, call_rate_hour, function(x)
+                     round(c(mean(x), sd(x), min(x), max(x)), 3))
 
-agg <- as.data.frame(matrix(unlist(agg), ncol = 4, byrow = TRUE, dimnames = list(c("Temperature", "Previous temperature", "Relative humidity", "Night rain", "Rain 24 hours", "Rain 48 hours", "Moonlight"),c("mean", "sd", "min", "max"))))
-# print table as kable  
-kb <-kable(agg, row.names = TRUE, digits = 3) 
-  
-kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
-  
+agg <- as.data.frame(matrix(
+  unlist(agg),
+  ncol = 4,
+  byrow = TRUE,
+  dimnames = list(
+    c(
+      "Temperature",
+      "Previous temperature",
+      "Relative humidity",
+      "Night rain",
+      "Rain 24 hours",
+      "Rain 48 hours",
+      "Moonlight"
+    ),
+    c("mean", "sd", "min", "max")
+  )
+))
+# print table as kable
+kb <- kable(agg, row.names = TRUE, digits = 3)
+
+kb <- kable_styling(kb,
+                    bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
 print(kb)
 
 ```
@@ -593,39 +618,54 @@ coords <- list(
 # sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_24 + ar(p = 2, time = hour_diff, gr = hour
 # sc_temp = temp y meanT = prev_temp
 
-dag_l <- dagify(sc_rain ~ evotranspiration,
-                sc_prev_rain ~ evotranspiration, 
-               sc_temp ~ climate,
-               sc_temp ~ sc_rain,
-               sc_HR ~ sc_rain,
-               n_call ~ sc_HR,
-               n_call ~ hour,
-               n_call ~ sc_moonlight,
-               sc_moonlight ~ hour,
-               sc_temp ~ hour,
-               sc_HR ~ sc_temp,
-               sc_HR ~ sc_prev_rain,
-               sc_HR ~ sc_rain,
-               n_call ~ sc_temp,
-               n_call ~ sc_prev_rain,
-               n_call ~  sc_rain,
-               labels = c("n_call" = "Calling\nactivity", "sc_HR" = "Relative\nhumidity","sc_rain" = "Current\nrain", "sc_prev_rain" = "Prior\nrain", "sc_moonlight" = "Moonlight", "hour" = "Earth\nrotation", "sc_temp" = "Tempera-\nture", "evotranspiration" = "Evotrans-\npiration", "climate" = "Climate", latent = c("evotranspiration", "climate"), outcome = "n_call"), coords = coords)
+dag_l <- dagify(
+  sc_rain ~ evotranspiration,
+  sc_prev_rain ~ evotranspiration,
+  sc_temp ~ climate,
+  sc_temp ~ sc_rain,
+  sc_HR ~ sc_rain,
+  n_call ~ sc_HR,
+  n_call ~ hour,
+  n_call ~ sc_moonlight,
+  sc_moonlight ~ hour,
+  sc_temp ~ hour,
+  sc_HR ~ sc_temp,
+  sc_HR ~ sc_prev_rain,
+  sc_HR ~ sc_rain,
+  n_call ~ sc_temp,
+  n_call ~ sc_prev_rain,
+  n_call ~  sc_rain,
+  labels = c(
+    "n_call" = "Calling\nactivity",
+    "sc_HR" = "Relative\nhumidity",
+    "sc_rain" = "Current\nrain",
+    "sc_prev_rain" = "Prior\nrain",
+    "sc_moonlight" = "Moonlight",
+    "hour" = "Earth\nrotation",
+    "sc_temp" = "Tempera-\nture",
+    "evotranspiration" = "Evotrans-\npiration",
+    "climate" = "Climate",
+    latent = c("evotranspiration", "climate"),
+    outcome = "n_call"
+  ),
+  coords = coords
+)
 
 tidy_dag <- tidy_dagitty(dag_l)
 tidy_dag$data$type <- ifelse(is.na(tidy_dag$data$to), "outcome", "predictor")
-tidy_dag$data$type[tidy_dag$data$name %in% c("evotranspiration", "climate")] <- "latent" 
+tidy_dag$data$type[tidy_dag$data$name %in% c("evotranspiration", "climate")] <- "latent"
 
 
 dat <- tidy_dag$data
 shorten_distance <- c(0.07, 0.07)
 dat$slope <- (dat$yend - dat$y) / (dat$xend - dat$x)
-distance <- sqrt((dat$xend - dat$x)^2 + (dat$yend - dat$y)^2)
-proportion <- shorten_distance[1]/distance
-dat$xend <- (1 - proportion/2) * dat$xend + (proportion/2 * dat$x)
-dat$yend <- (1 - proportion/2) * dat$yend + (proportion/2*dat$y)
-proportion <- shorten_distance[2]/distance
-dat$xstart <- (1-proportion/2)*(dat$x - dat$xend) + dat$xend
-dat$ystart <- (1-proportion/2)*(dat$y - dat$yend) + dat$yend
+distance <- sqrt((dat$xend - dat$x) ^ 2 + (dat$yend - dat$y) ^ 2)
+proportion <- shorten_distance[1] / distance
+dat$xend <- (1 - proportion / 2) * dat$xend + (proportion / 2 * dat$x)
+dat$yend <- (1 - proportion / 2) * dat$yend + (proportion / 2 * dat$y)
+proportion <- shorten_distance[2] / distance
+dat$xstart <- (1 - proportion / 2) * (dat$x - dat$xend) + dat$xend
+dat$ystart <- (1 - proportion / 2) * (dat$y - dat$yend) + dat$yend
 
 tidy_dag$data <- dat
 
@@ -653,43 +693,69 @@ basic_dag <- ggplot(tidy_dag, aes(
 
 basic_dag
 
-dag_24 <- dagify(sc_rain ~ evotranspiration,
-                sc_rain_24 ~ evotranspiration, 
-                sc_temp ~ climate,
-               sc_temp ~ sc_rain,   
-               sc_HR ~ sc_rain,
-               n_call ~ sc_HR,
-               n_call ~ hour,
-               n_call ~ sc_moonlight,
-               sc_moonlight ~ hour,
-               sc_temp ~ hour,
-               sc_HR ~ sc_temp,
-               sc_HR ~ sc_rain_24,
-               sc_HR ~ sc_rain,
-               n_call ~ sc_temp,
-               n_call ~ sc_rain_24,
-               n_call ~  sc_rain,
-               labels = c("n_call" = "Call rate", "sc_HR" = "Relative humidity","sc_rain" = "Night Rain", "sc_rain_24" = "Previous Rain", "sc_moonlight" = "Moonlight", "hour" = "Earth rotation", "sc_temp" = "Temperature", "evotranspiration" = "Evotranspiration", "climate" = "Climate", latent = c("evotranspiration", "climate"), outcome = "n_call"))
+dag_24 <- dagify(
+  sc_rain ~ evotranspiration,
+  sc_rain_24 ~ evotranspiration,
+  sc_temp ~ climate,
+  sc_temp ~ sc_rain,
+  sc_HR ~ sc_rain,
+  n_call ~ sc_HR,
+  n_call ~ hour,
+  n_call ~ sc_moonlight,
+  sc_moonlight ~ hour,
+  sc_temp ~ hour,
+  sc_HR ~ sc_temp,
+  sc_HR ~ sc_rain_24,
+  sc_HR ~ sc_rain,
+  n_call ~ sc_temp,
+  n_call ~ sc_rain_24,
+  n_call ~  sc_rain,
+  labels = c(
+    "n_call" = "Call rate",
+    "sc_HR" = "Relative humidity",
+    "sc_rain" = "Night Rain",
+    "sc_rain_24" = "Previous Rain",
+    "sc_moonlight" = "Moonlight",
+    "hour" = "Earth rotation",
+    "sc_temp" = "Temperature",
+    "evotranspiration" = "Evotranspiration",
+    "climate" = "Climate",
+    latent = c("evotranspiration", "climate"),
+    outcome = "n_call"
+  )
+)
 
-dag_48 <- dagify(sc_rain ~ evotranspiration,
-                sc_rain_48 ~ evotranspiration, 
-               sc_temp ~ climate,
-               sc_temp ~ sc_rain,
-               sc_HR ~ sc_rain,
-               n_call ~ sc_HR,
-               n_call ~ hour,
-               n_call ~ sc_moonlight,
-               sc_moonlight ~ hour,
-               sc_temp ~ hour,
-               sc_HR ~ sc_temp,
-               sc_HR ~ sc_rain_48,
-               sc_HR ~ sc_rain,
-               n_call ~ sc_temp,
-               n_call ~ sc_rain_48,
-               n_call ~  sc_rain,
-               labels = c("n_call" = "Call rate", "sc_HR" = "Relative humidity","sc_rain" = "Night Rain", "sc_rain_48" = "Previous Rain", "sc_moonlight" = "Moonlight", "hour" = "Earth rotation", "sc_temp" = "Temperature", "evotranspiration" = "Evotranspiration", "climate" = "Climate", latent = c("evotranspiration", "climate"), outcome = "n_call"))
-
-
+dag_48 <- dagify(
+  sc_rain ~ evotranspiration,
+  sc_rain_48 ~ evotranspiration,
+  sc_temp ~ climate,
+  sc_temp ~ sc_rain,
+  sc_HR ~ sc_rain,
+  n_call ~ sc_HR,
+  n_call ~ hour,
+  n_call ~ sc_moonlight,
+  sc_moonlight ~ hour,
+  sc_temp ~ hour,
+  sc_HR ~ sc_temp,
+  sc_HR ~ sc_rain_48,
+  sc_HR ~ sc_rain,
+  n_call ~ sc_temp,
+  n_call ~ sc_rain_48,
+  n_call ~  sc_rain,
+  labels = c(
+    "n_call" = "Call rate",
+    "sc_HR" = "Relative humidity",
+    "sc_rain" = "Night Rain",
+    "sc_rain_48" = "Previous Rain",
+    "sc_moonlight" = "Moonlight",
+    "hour" = "Earth rotation",
+    "sc_temp" = "Temperature",
+    "evotranspiration" = "Evotranspiration",
+    "climate" = "Climate",
+    latent = c("evotranspiration", "climate"),
+    outcome = "n_call"
+  )
+)
 
 ```
 
@@ -724,55 +790,80 @@ This code fits all the models in the adjustment sets across all predictors:
 #| eval: false
 
 param_grid <- expand.grid(
-  dag = c("dag_24", "dag_48"), 
-  exposure = c("sc_temp", "sc_HR", "sc_moonlight", "sc_rain", "sc_rain_24", "sc_rain_48"),
-  effect = c("total", "direct"), stringsAsFactors = FALSE
-  )
+  dag = c("dag_24", "dag_48"),
+  exposure = c(
+    "sc_temp",
+    "sc_HR",
+    "sc_moonlight",
+    "sc_rain",
+    "sc_rain_24",
+    "sc_rain_48"
+  ),
+  effect = c("total", "direct"),
+  stringsAsFactors = FALSE
+)
 
 param_grid$name <- apply(param_grid, 1, paste, collapse = "-")
 
 # remove wrong dags for previous rain
-param_grid <- param_grid[!(param_grid$dag == "dag_24" & param_grid$exposure == "sc_rain_48") & !(param_grid$dag == "dag_48" & param_grid$exposure == "sc_rain_24"), ]
+param_grid <- param_grid[!(param_grid$dag == "dag_24" &
+                             param_grid$exposure == "sc_rain_48") &
+                           !(param_grid$dag == "dag_48" &
+                               param_grid$exposure == "sc_rain_24"), ]
 
 
-adjustment_sets_list <- pblapply(seq_len(nrow(param_grid)), cl = 1, function(x){
+adjustment_sets_list <- pblapply(seq_len(nrow(param_grid)), cl = 1, function(x) {
+  forms <- adjustment_set_formulas(
+    dag = if (param_grid$dag[x] == "dag_24")
+      dag_24 else
+      dag_48,
+    type = if (param_grid$effect[x] == "total")
+      "all" else
+      "minimal",
+    exposure = param_grid$exposure[x],
+    outcome = "n_call",
+    effect = param_grid$effect[x],
+    required_variable = "hour",
+    formula_parts = c(
+      "n_call | resp_rate(rec_time)",
+      "+ ar(p = 2, time = hour_diff, gr = hour)"
+    ),
+    latent = c("evotranspiration", "climate"),
+    remove = "hour",
+    plot = FALSE
+  )
   
-forms <- adjustment_set_formulas(
-  dag = if (param_grid$dag[x] == "dag_24") dag_24 else dag_48,
-  type = if (param_grid$effect[x] == "total") "all" else "minimal",
-  exposure = param_grid$exposure[x],
-  outcome = "n_call",
-  effect = param_grid$effect[x],
-  required_variable = "hour",
-  formula_parts = c(
-    "n_call | resp_rate(rec_time)",
-    "+ ar(p = 2, time = hour_diff, gr = hour)"
-  ),
-  latent = c("evotranspiration", "climate"),
-  remove = "hour",
-  plot = FALSE
-)
-
-return(forms)
+  return(forms)
 })
 
 
 
 names(adjustment_sets_list) <- param_grid$name
 
-param_grid$model <-sapply(seq_len(nrow(param_grid)), function(x) {
+param_grid$model <- sapply(seq_len(nrow(param_grid)), function(x) {
   if (param_grid$effect[x] == "direct")
-  adjustment_sets_list[[which(names(adjustment_sets_list) == param_grid$name[x])]] else
+    adjustment_sets_list[[which(names(adjustment_sets_list) == param_grid$name[x])]] else
     NA
-  }) 
+})
 
-param_grid$model <- unlist(
-param_grid$model)
+param_grid$model <- unlist(param_grid$model)
 param_grid <- as.data.frame(param_grid)
 
 
-param_grid$model[!is.na(param_grid$model)] <- remove_special_chars(param_grid$model[!is.na(param_grid$model)] ) 
-param_grid$model <- c("total_effect_temperature_with_rain_24", "total_effect_temperature_with_rain_48",  "total_effect_humidity_with_rain_24",  "total_effect_humidity_with_rain_48", "total_effect_moon_with_rain_24", "total_effect_moon_with_rain_48", "total_effect_rain_with_rain_24", "total_effect_rain_with_rain_48", "total_effect_previous_rain_24", "total_effect_previous_rain_48", param_grid$model[!is.na(param_grid$model)])
+param_grid$model[!is.na(param_grid$model)] <- remove_special_chars(param_grid$model[!is.na(param_grid$model)])
+param_grid$model <- c(
+  "total_effect_temperature_with_rain_24",
+  "total_effect_temperature_with_rain_48",
+  "total_effect_humidity_with_rain_24",
+  "total_effect_humidity_with_rain_48",
+  "total_effect_moon_with_rain_24",
+  "total_effect_moon_with_rain_48",
+  "total_effect_rain_with_rain_24",
+  "total_effect_rain_with_rain_48",
+  "total_effect_previous_rain_24",
+  "total_effect_previous_rain_48",
+  param_grid$model[!is.na(param_grid$model)]
+)
 
 param_grid$exposure.name <- param_grid$exposure
 param_grid$exposure.name[grep("temp", param_grid$exposure.name)] <- "Temperature"
@@ -784,7 +875,20 @@ param_grid$exposure.name[grep("rain_48", param_grid$exposure.name)] <- "Previous
 
 table(param_grid$exposure.name)
 
-write.csv(x = param_grid, file = file.path(path, "direct_and_total_effect_model_data_frame.csv"), row.names = FALSE)
+write.csv(
+  x = param_grid,
+  file = file.path(path, "direct_and_total_effect_model_data_frame.csv"),
+  row.names = FALSE
+)
+
+```
+
+
+```{r}
+#| eval: false
+# Here we show the fitting parameters and some convergence diagnostics for all fitted models:
+  
+brmsish::check_rds_fits(path = file.path(path, "averaged_models"))
 
 ```
 
@@ -796,53 +900,54 @@ The code below takes all models representing an adjustment set for each predicto
 
 direct_adjustment_sets_list <- adjustment_sets_list[grep("direct", names(adjustment_sets_list))]
 
-for(i in seq_along(direct_adjustment_sets_list))
-pa_comb_mod <-
-averaged_model(
+for (i in seq_along(direct_adjustment_sets_list))
+  pa_comb_mod <-
+  averaged_model(
     formulas = direct_adjustment_sets_list[[i]],
     data = call_rate_hour,
     suffix = "direct",
     model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
     save.files = TRUE,
-    path = file.path(path, "averaged_models"), 
+    path = file.path(path, "averaged_models"),
     # name = "temperature_with_rain_24",
-    cores = 1 
+    cores = 1
   )
 
 
 model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')"
 formulas <- unlist(direct_adjustment_sets_list)
-mod_path <- file.path(path, "single_models")
+mod_path <- file.path(path, "averaged_models")
 
 fit_list <- pblapply_brmsish_int(X = formulas, cl = 1, function(y) {
-        # make file name without special characters
-        mod_name <-
-          paste0(remove_special_chars(as.character(y)), ".RDS")
-        
-        if (!file.exists(file.path(mod_path, mod_name))) {
-          cat("Fitting", y, "\n")
-          mc <-
-            gsub(pattern = "formula",
-                 replacement = as.character(y),
-                 x = model_call)
-          
-          mc <- parse(text = mc)
-          
-          fit <- eval(mc)
-          
-          if (save.files)
-            saveRDS(fit, file = file.path(mod_path, mod_name))
-          
-        } 
-      })
-
-
+  # make file name without special characters
+  mod_name <-
+    paste0(remove_special_chars(as.character(y)), ".RDS")
+  
+  if (!file.exists(file.path(mod_path, mod_name))) {
+    cat("Fitting", y, "\n")
+    mc <-
+      gsub(pattern = "formula",
+           replacement = as.character(y),
+           x = model_call)
+    
+    mc <- parse(text = mc)
+    
+    fit <- eval(mc)
+    
+    if (save.files)
+      saveRDS(fit, file = file.path(mod_path, mod_name))
+    
+  }
+})
 
 ```
 
 ## Results
 
-These are the regression results for the direct and total effects for each predictor:
+- Regression results for the direct and total effects for each predictor
+- Effects are estimated using 24h and 48h prior rain
+- For each model we show the model fitting parameters, the posterior distribution of estimates and the chain trace plots (not available for total effect averaged models)  
+
 ```{r, results='asis'}
 
 param_grid <- read.csv(file = file.path(path, "direct_and_total_effect_model_data_frame.csv"))
@@ -850,46 +955,45 @@ param_grid <- read.csv(file = file.path(path, "direct_and_total_effect_model_dat
 param_grid$files <- file.path(file.path(path, "averaged_models", paste0(param_grid$model, ".RDS")))
 
 
-for(i in unique(param_grid$exposure.name)){
+for (i in unique(param_grid$exposure.name)) {
   Y <- param_grid[param_grid$exposure.name == i, ]
   
   cat(paste("\n###", i), "\n")
   cat("\n#### Direct effects\n")
-  for(e in which(Y$effect == "direct")){
+  for (e in which(Y$effect == "direct")) {
     if (grepl("24", Y$model[e]))
       cat("\n##### 24 hour previous rain model:\n") else
-              cat("\n##### 48 hour previous rain model:\n")
+      cat("\n##### 48 hour previous rain model:\n")
     extended_summary(
-    read.file = Y$files[e],
-    highlight = TRUE,
-    remove.intercepts = TRUE, 
-    print.name = FALSE
+      read.file = Y$files[e],
+      highlight = TRUE,
+      remove.intercepts = TRUE,
+      print.name = FALSE
     )
     cat("\n")
-    }
-
- cat("\n#### Total effect\n")
-  for(w in which(Y$effect == "total")){
-       if (grepl("24", Y$files[w]))
+  }
+  
+  cat("\n#### Total effect\n")
+  for (w in which(Y$effect == "total")) {
+    if (grepl("24", Y$files[w]))
       cat("\n##### 24 hour previous rain model:\n") else
-              cat("\n##### 48 hour previous rain model:\n")
+      cat("\n##### 48 hour previous rain model:\n")
     
     draws <- readRDS(Y$files[w])
-
-draw_extended_summary(
-  draws,
-  highlight = TRUE,
-  remove.intercepts = TRUE
-)
-  cat("\n")
- cat("\n###### Summary of single models:\n")
     
-  # print summary
-  print(readRDS(gsub("\\.RDS", "_fit_summary.RDS", Y$files[w])))
-  }
+    draw_extended_summary(draws,
+                          highlight = TRUE,
+                          remove.intercepts = TRUE)
     cat("\n")
+    cat("\n###### Summary of single models:\n")
+    
+    # print summary
+    print(readRDS(gsub(
+      "\\.RDS", "_fit_summary.RDS", Y$files[w]
+    )))
   }
-
+  cat("\n")
+}
 
 ```
 
@@ -905,14 +1009,15 @@ Takes the posterior probability distributions from the right causal models
 #| output: asis
 
 param_grid <- read.csv(file = file.path(path, "direct_and_total_effect_model_data_frame.csv"))
-param_grid <- param_grid[param_grid$effect == "direct",]
+param_grid <- param_grid[param_grid$effect == "direct", ]
 
 param_grid$file <- paste0(remove_special_chars(param_grid$model), ".RDS")
 
-rdss_24 <- list.files(file.path(path, "averaged_models"), pattern = "24.RDS", full.names = TRUE)
+rdss_24 <- list.files(file.path(path, "averaged_models"),
+                      pattern = "24.RDS",
+                      full.names = TRUE)
 
 combined_draws_list <- lapply(rdss_24, function(x) {
-  
   total_draws <- readRDS(x)
   
   exp <-
@@ -954,21 +1059,33 @@ combined_draws_list <- lapply(rdss_24, function(x) {
 combined_draws <- do.call(cbind, combined_draws_list)
 combined_draws <- combined_draws[, c(which(sapply(combined_draws, is.numeric)), ncol(combined_draws))]
 
-combined_draws[,-ncol(combined_draws)] <- to_change_percentage(combined_draws[,-ncol(combined_draws)])
+combined_draws[, -ncol(combined_draws)] <- to_change_percentage(combined_draws[, -ncol(combined_draws)])
 
 
 # combined_draws <- as.data.frame(combined_draws)
 combined_draws$effect <- ifelse(combined_draws$effect == "direct", "Direct", "Total")
 
 
-saveRDS(combined_draws, file.path(path, "combined_draws_for_total_and_direct_effects_24h_previous_rain.RDS"))
+saveRDS(
+  combined_draws,
+  file.path(
+    path,
+    "combined_draws_for_total_and_direct_effects_24h_previous_rain.RDS"
+  )
+)
+
 ```
 
 ```{r, fig.cap = "Posterior distribution of direct (green) and total (purple) effect sizes of environmental factors on the calling activity of A. lemur. Posterior values were transformed into percentage change to facilitate interpretation. Dots and error bars show the median and 95% uncertainty intervals of the distributions. Solid color distributions correspond to effect sizes in which uncertainty intervals do not include zero. “Prior rain” accounts for the 24 hour period before sampling calling activity."}
 #| eval: true
 #| output: asis
 
-combined_draws <- readRDS(file.path(path, "combined_draws_for_total_and_direct_effects_24h_previous_rain.RDS"))
+combined_draws <- readRDS(
+  file.path(
+    path,
+    "combined_draws_for_total_and_direct_effects_24h_previous_rain.RDS"
+  )
+)
 
 fill_colors <- viridis::mako(10)[c(8, 4)]
 
@@ -991,18 +1108,19 @@ gg_dists <- draw_extended_summary(
     "Prior\nrain",
     "Temperature",
     "Moonlight"
-  ), 
+  ),
   ylab = "Variable",
   xlab = "Effect size (% of change)"
 )
 
 gg_dists + ggplot2::scale_fill_manual(values = fill_colors) +
-ggplot2::theme(
-      axis.ticks.length = ggplot2::unit(0, "pt"),
-      plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-      legend.position = "inside",
-      legend.position.inside = c(0.7, 0.7)
-      )
+  ggplot2::theme(
+    axis.ticks.length = ggplot2::unit(0, "pt"),
+    plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+    legend.position = "inside",
+    legend.position.inside = c(0.7, 0.7)
+  )
+
 ```
 
 ### 48h previous rain as *previous rain* 
@@ -1011,14 +1129,15 @@ ggplot2::theme(
 #| output: asis
 
 param_grid <- read.csv(file = file.path(path, "direct_and_total_effect_model_data_frame.csv"))
-param_grid <- param_grid[param_grid$effect == "direct",]
+param_grid <- param_grid[param_grid$effect == "direct", ]
 
 param_grid$file <- paste0(remove_special_chars(param_grid$model), ".RDS")
 
-rdss_48 <- list.files(file.path(path, "averaged_models"), pattern = "48.RDS", full.names = TRUE)
+rdss_48 <- list.files(file.path(path, "averaged_models"),
+                      pattern = "48.RDS",
+                      full.names = TRUE)
 
 combined_draws_list <- lapply(rdss_48, function(x) {
-
   total_draws <- readRDS(x)
   
   exp <-
@@ -1060,13 +1179,19 @@ combined_draws_list <- lapply(rdss_48, function(x) {
 combined_draws <- do.call(cbind, combined_draws_list)
 combined_draws <- combined_draws[, c(which(sapply(combined_draws, is.numeric)), ncol(combined_draws))]
 
-combined_draws[,-ncol(combined_draws)] <- to_change_percentage(combined_draws[,-ncol(combined_draws)])
+combined_draws[, -ncol(combined_draws)] <- to_change_percentage(combined_draws[, -ncol(combined_draws)])
 
 
 # combined_draws <- as.data.frame(combined_draws)
-combined_draws$effect <- ifelse(combined_draws$effect == "direct", "Direct", "Total") 
+combined_draws$effect <- ifelse(combined_draws$effect == "direct", "Direct", "Total")
 
-saveRDS(combined_draws, file.path(path, "combined_draws_for_total_and_direct_effects_48h_previous_rain.RDS"))
+saveRDS(
+  combined_draws,
+  file.path(
+    path,
+    "combined_draws_for_total_and_direct_effects_48h_previous_rain.RDS"
+  )
+)
 
 ```
 
@@ -1074,7 +1199,12 @@ saveRDS(combined_draws, file.path(path, "combined_draws_for_total_and_direct_eff
 #| eval: true
 #| output: asis
 
-combined_draws <- readRDS(file.path(path, "combined_draws_for_total_and_direct_effects_48h_previous_rain.RDS"))
+combined_draws <- readRDS(
+  file.path(
+    path,
+    "combined_draws_for_total_and_direct_effects_48h_previous_rain.RDS"
+  )
+)
 
 
 gg_dists <- draw_extended_summary(
@@ -1096,18 +1226,18 @@ gg_dists <- draw_extended_summary(
     "Prior\nrain",
     "Temperature",
     "Moonlight"
-  ), 
+  ),
   ylab = "Variable",
   xlab = "Effect size (% of change)"
 )
 
 gg_dists + ggplot2::scale_fill_manual(values = fill_colors) +
-ggplot2::theme(
-      axis.ticks.length = ggplot2::unit(0, "pt"),
-      plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-      legend.position = "inside",
-      legend.position.inside = c(0.7, 0.7)
-      )
+  ggplot2::theme(
+    axis.ticks.length = ggplot2::unit(0, "pt"),
+    plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+    legend.position = "inside",
+    legend.position.inside = c(0.7, 0.7)
+  )
 
 ```
 
