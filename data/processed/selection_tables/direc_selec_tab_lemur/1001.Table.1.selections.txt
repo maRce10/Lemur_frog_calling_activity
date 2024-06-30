@@ -1,0 +1,2 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	0.399164934	0.441932606	2201.546	2544.838	1001.WAV	0.3992	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grabaciones_direccionales_2/1001.WAV

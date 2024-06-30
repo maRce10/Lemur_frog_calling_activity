@@ -1,0 +1,23 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Waveform 1	1	18.062591735	18.102020601	1984.169	2327.177	1012.WAV	18.0626	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+2	Waveform 1	1	27.669452026	27.697615502	2216.867	2522.727	1012.WAV	27.6695	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+3	Waveform 1	1	4.607034114	4.635197589	2048.193	2361.446	1012.WAV	4.6070	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+4	Waveform 1	1	4.688708193	4.725320711	2240.964	2530.120	1012.WAV	4.6887	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+5	Waveform 1	1	9.351326899	9.379490375	2215.909	2431.818	1012.WAV	9.3513	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+6	Waveform 1	1	9.475246192	9.494960625	2189.974	2506.024	1012.WAV	9.4752	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+7	Waveform 1	1	18.538015603	18.562583615	2295.455	2423.077	1012.WAV	18.5380	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+8	Waveform 1	1	21.929122925	21.965735443	2289.157	2578.313	1012.WAV	21.9291	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+9	Waveform 1	1	24.996008246	25.041069807	2204.545	2454.545	1012.WAV	24.9960	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+10	Waveform 1	1	30.463237911	30.491401387	2048.193	2385.542	1012.WAV	30.4632	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+11	Waveform 1	1	31.679969932	31.710949755	2144.578	2433.735	1012.WAV	31.6800	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+12	Waveform 1	1	38.090889600	38.116236728	2265.060	2602.410	1012.WAV	38.0909	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+13	Waveform 1	1	41.366258717	41.400054888	2184.697	2480.211	1012.WAV	41.3663	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+15	Waveform 1	1	57.400294315	57.436906833	2159.091	2397.727	1012.WAV	57.4003	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+16	Waveform 1	1	71.690357075	71.724153246	2215.909	2465.909	1012.WAV	71.6904	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+17	Waveform 1	1	74.493357609	74.541235518	2361.446	2650.602	1012.WAV	74.4934	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+18	Waveform 1	1	75.845204438	75.873367913	2048.193	2409.639	1012.WAV	75.8452	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+19	Waveform 1	1	78.095525066	78.129321237	2295.455	2568.182	1012.WAV	78.0955	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+20	Waveform 1	1	84.951288138	84.985084309	2120.482	2490.765	1012.WAV	84.9513	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+22	Waveform 1	1	88.202924159	88.236720330	2056.818	2340.909	1012.WAV	88.2029	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+23	Waveform 1	1	97.401496044	97.432475867	2193.182	2511.364	1012.WAV	97.4015	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV
+25	Waveform 1	1	99.949167658	99.994229219	2216.867	2578.313	1012.WAV	99.9492	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grab_dir_10-06-2021/1012.WAV

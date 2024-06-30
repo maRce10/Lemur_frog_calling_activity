@@ -1,0 +1,301 @@
+---
+title: "Size_effect_lemur_analysis"
+author: "Fabiola Chirino"
+date: "2022-12-05"
+output: html_document
+---
+
+Temperature model: 
+```{r}
+# Standard deviation transformation: 
+
+exp(0.307) # effect 
+exp(0.257) # CI_low 
+exp(0.357) #CI_high
+
+# sd & unit transformation: 
+
+(exp(0.307) - 1) / 2.12 # sd without any transformation
+
+(exp(0.307) - 1) / 2.12 + 1
+
+```
+Temperature model (24h) (Version 2): 
+```{r}
+# Standard deviation transformation: 
+
+exp(0.312) # effect 
+exp(0.261) # CI_low 
+exp(0.361) #CI_high
+
+# sd & unit transformation: 
+
+(exp(0.312) - 1) / 2.12 # sd without any transformation
+
+(exp(0.312) - 1) / 2.12 + 1
+```
+Temperature model (48h) (Version 2): 
+```{r}
+# Standard deviation transformation: 
+
+exp(0.305) # effect 
+exp(0.255) # CI_low 
+exp(0.355) #CI_high
+
+# sd & unit transformation: 
+
+(exp(0.305) - 1) / 2.12 # sd without any transformation
+
+(exp(0.305) - 1) / 2.12 + 1
+```
+
+Previous Temperature (Version 2): 
+```{r}
+# Standard deviation transformation: 
+
+exp(-0.002) # effect 
+exp(-0.048) # CI_low 
+exp(0.044) #CI_high
+
+# sd & unit transformation: 
+
+(exp(-0.002) - 1) / 0.988 # sd without any transformation
+
+(exp(-0.002) - 1) / 0.988 + 1
+```
+
+Relative humidity model: 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.314) 
+
+#CI_low: 
+exp(0.241)
+
+#CI_high:
+exp(0.386)
+
+# sd & unit transformation: 
+
+(exp(0.314) - 1) / 8.46 + 1
+
+```
+Relative humidity model 24 h (Version 2): 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.314) 
+
+#CI_low: 
+exp(0.242)
+
+#CI_high:
+exp(0.385)
+
+# sd & unit transformation: 
+
+(exp(0.314) - 1) / 8.46 + 1
+
+```
+
+Relative humidity model 48 h (Version 2):
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.308) 
+
+#CI_low: 
+exp(0.235)
+
+#CI_high:
+exp(0.382)
+
+# sd & unit transformation: 
+
+(exp(0.308) - 1) / 8.46 + 1
+```
+
+Moon model: 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(-0.128) 
+
+#CI_low: 
+exp(-0.194)
+
+#CI_high:
+exp(-0.063)
+
+# sd & unit transformation: 
+
+(exp(-0.128) - 1) / 0.355 + 1
+
+```
+Night model: 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.018) 
+
+#CI_low: 
+exp(-0.053)
+
+#CI_high:
+exp(0.095)
+
+# sd & unit transformation: 
+(exp(0.018) - 1) / 0.457 + 1
+
+```
+Night model 24h (Version 2): 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.001) 
+
+#CI_low: 
+exp(-0.035)
+
+#CI_high:
+exp(0.038)
+
+# sd & unit transformation: 
+(exp(0.001) - 1) / 0.457 + 1
+
+```
+Night model 48h (Version 2): 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(-0.006) 
+
+#CI_low: 
+exp(-0.042)
+
+#CI_high:
+exp(0.030)
+
+# sd & unit transformation: 
+(exp(0.006) - 1) / 0.457 + 1
+```
+
+Previous rain 48 h
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(-0.002) 
+
+#CI_low: 
+exp(-0.038)
+
+#CI_high:
+exp(0.035)
+
+# sd & unit transformation: 
+(exp(-0.002) - 1) / 2.126 + 1
+
+```
+Previous rain 48 h (Version 2): 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.007) 
+
+#CI_low: 
+exp(-0.031)
+
+#CI_high:
+exp(0.045)
+
+# sd & unit transformation: 
+(exp(0.007) - 1) / 0.317 + 1
+```
+
+Previous rain 24 h
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.082) 
+
+#CI_low: 
+exp(0.045)
+
+#CI_high:
+exp(0.121)
+
+# sd & unit transformation: 
+(exp(0.082) - 1) / 2.12 + 1
+```
+Previous rain 24 h rain (Version 2: 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.090) 
+
+#CI_low: 
+exp(0.051)
+
+#CI_high:
+exp(0.129)
+
+# sd & unit transformation: 
+(exp(0.090) - 1) / 3.16 + 1
+```
+
+
+
+
+
+
+
+
+
+Moon illumination 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.128) 
+
+#CI_low: 
+exp(0.603)
+
+#CI_high:
+exp(0.704)
+
+# sd & unit transformation: 
+(exp(0.603) - 1) / 2.12 + 1
+```
+
+Previous temp: 
+```{r}
+# Standard deviation transformation:
+
+# Effect: 
+exp(0.016) #-1.016
+
+#CI_low: 
+exp(0.083) #-1.086
+
+#CI_high:
+exp(0.051)
+
+```
+
+
+
+
+

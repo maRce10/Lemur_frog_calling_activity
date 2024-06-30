@@ -1,0 +1,11 @@
+﻿Label;Model name;Variable;Estimate;CI_low;CI_high;Model
+Temperature (24 h rain);Temperature 24h;sc_temp;0.312;0.261;0.361;./data/processed/regression_models/temp2.1.rds
+Temperature (48 h rain);Temperature 48h ;sc_temp;0.305;0.255;0.355;./data/processed/regression_models/temp2.2.rds
+Previous mean temperature;Previous temperature;sc_prev_temp;-0.002;-0.048;0.044;./data/processed/regression_models/temp2.3.rds
+Relative humidity (24 h rain);Relative humidity 24h ;sc_HR;0.314;0.242;0.385;./data/processed/regression_models/RH3.1.rds
+Relative humidity (48 h rain);Relative humidity 48h ;sc_HR;0.308;0.235;0.382;./data/processed/regression_models/RH3.2.rds
+Moonlight;Moonlight;sc_moonlight;-0.128;-0.194;-0.063;./data/processed/regression_models/moon4.rds
+Night rain (48 h rain);Night rain 48h ;sc_rain;-0.006;-0.042;-0.030;./data/processed/regression_models/night_rain5.1.rds
+Night Rain (24 h rain);Night Rain 24h ;sc_rain;0.077;0.038;0.117;./data/processed/regression_models/night_rain5.2.rds
+Previous 48h rain ;Previous 48h rain;sc_rain_48;-0.007;-0.031;0.045;./data/processed/regression_models/previous_rain6.1.rds
+Previous 24h rain ;Previous 24h rain;sc_rain_24;0.090;0.051;0.129;./data/processed/regression_models/previous_rain6.2.rds

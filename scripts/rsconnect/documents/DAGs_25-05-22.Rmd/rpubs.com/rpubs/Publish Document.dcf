@@ -1,0 +1,11 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/907111/739edab2468044ed833295f1447dc19c
+bundleId: https://api.rpubs.com/api/v1/document/907111/739edab2468044ed833295f1447dc19c
+url: http://rpubs.com/Fabiola_Chirino/907111
+when: 1653539080.19011
+lastSyncTime: 1653539080.19012

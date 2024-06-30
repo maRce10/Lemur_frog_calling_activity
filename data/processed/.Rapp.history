@@ -1,0 +1,5 @@
+load("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/processed/template_correlations_4_templates_mel_spectros.RDS")
+load("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/processed/acoustic_parameters_and_selections.RDS")
+load("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/processed/mean_acoustic_parameter_templates_est.RDS")
+load("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/processed/mean_acoustic_parameter_templates_est.RDS")
+load("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/processed/mean_acoustic_parameter_templates_est.RDS")

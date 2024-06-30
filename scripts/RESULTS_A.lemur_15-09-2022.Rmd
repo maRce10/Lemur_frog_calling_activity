@@ -1,0 +1,1018 @@
+---
+title: <center><font size="6"><b>Statistical analysis</b></font></center>
+subtitle: <center><font size="4"><b> Agalychnis lemur</b></font></center>
+author: Marcelo Araya-Salas, PhD</a> &  Fabiola Chirino</font></center>
+date: <center>`r format(Sys.Date(), "%d-%m-%Y")`</center>
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    code_folding: hide
+    df_print: kable
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+fontsize: 12pt
+editor_options:
+  chunk_output_type: console
+---
+
+<!-- this css code centers headings -->
+```{css, echo = FALSE}
+div#header h1.title, div#header h3.subtitle, div#header h4.author, div#header h4.date {
+  text-align: center
+}
+```
+
+```{r Chunk1 load packages, include=FALSE, message=FALSE, warnings=FALSE, echo=FALSE, eval=TRUE}
+
+# Unload packages
+out <- sapply(paste('package:', names(sessionInfo()$otherPkgs), sep = ""), function(x) try(detach(x, unload = FALSE, character.only = TRUE), silent = T))
+  
+pkgs <- c("remotes", "viridis", "brms", "ggdist", "cowplot", "posterior", "readxl", "HDInterval", "kableExtra", "knitr", "ggdist", "ggplot2", "lunar", "cowplot", "maRce10/brmsish", "warbleR", "ohun")
+  
+out <- lapply(pkgs, function(y) {
+  
+  # get pakage name
+  pkg <- strsplit(y, "/")[[1]]
+  pkg <- pkg[length(pkg)]
+  
+  # check if installed, if not then install 
+  if (!pkg %in% installed.packages()[,"Package"])  {
+
+      if (grepl("/", y))  remotes::install_github(y, force = TRUE) else
+    install.packages(y) 
+    }
+
+  # load package
+  a <- try(require(pkg, character.only = T), silent = T)
+
+  if (!a) remove.packages(pkg)
+})
+
+  
+options("digits" = 6, "digits.secs" = 5, knitr.table.format = "html") 
+
+# set evaluation false
+opts_chunk$set(fig.width = 10, fig.height = 6, warning = FALSE, message = FALSE, tidy = TRUE)
+
+# set working directory as project directory or one directory above,
+opts_knit$set(root.dir = "..")
+
+```
+
+```{r functions, eval = TRUE}
+
+source("~/Dropbox/R_package_testing/brmsish/R/extended_summary.R")
+source("~/Dropbox/R_package_testing/brmsish/R/helpers.R")
+
+label_spectro_temp <-
+  function(wave,
+           reference = NULL,
+           detection = NULL,
+           envelope = FALSE,
+           threshold = NULL,
+           smooth = 5,
+           collevels = seq(-100, 0, 5),
+           palette = viridis::viridis,
+           template.correlation = NULL,
+           line.x.position = 2,
+           hop.size = NULL,
+           col.line = NULL,
+           ...) {
+    # adjust wl based on hope.size
+    if (!is.null(hop.size))
+      wl <- round(wave@samp.rate * hop.size / 1000, 0)
+
+    # reset graphic device on exit
+    oldpar <- par(no.readonly = TRUE)
+    on.exit(par(oldpar))
+
+    if (envelope | !is.null(template.correlation))
+      par(mfrow = c(2, 1), mar = c(0,  4,  1,  1))
+    else
+      par(mar = c(4, 4, 1, 1))
+
+    # plot spectrogram
+    seewave::spectro(
+      wave = wave,
+      grid = FALSE,
+      scale = FALSE,
+      palette = palette,
+      collevels = collevels,
+      axisX = if (envelope |
+                  !is.null(template.correlation))
+        FALSE
+      else
+        TRUE,
+      ...
+    )
+
+    # plot detection
+    if (!is.null(reference))
+      for (i in seq_len(nrow(reference)))
+        lines(
+          x = (reference[i, c("start", "end")]),
+          y = rep(line.x.position, 2),
+          col = col.line[1],
+          lwd = 7,
+          lend = 2
+        )
+
+    # plot detection
+    if (!is.null(detection))
+      for (i in seq_len(nrow(detection)))
+        lines(
+          x = (detection[i, c("start", "end")]),
+          y = rep(line.x.position - 0.3, 2),
+          col = col.line[2],
+          lwd = 7,
+          lend = 2
+        )
+
+    usr <- par("usr")
+
+    # add legend
+    if (!is.null(detection) & !is.null(reference))
+      legend(
+        x = usr[2] * 0.98,
+        y = usr[4] * 0.98,
+        col = col.line[1:2],
+        legend = c("Referencia", "Detección"),
+        text.width = 0.3,
+        lwd = 4,
+        bg = "#FFFFFFE6",
+        xjust = 1,
+        yjust = 1
+      )
+
+    if (is.null(detection) & !is.null(reference))
+      legend(
+        x = usr[2] * 0.98,
+        y = usr[4] * 0.98,
+        col = col.line[1],
+         text.width = 0.3,
+        legend = c("Referencia"),
+        lwd = 4,
+        bg = "#FFFFFFE6",
+        xjust = 1,
+        yjust = 1
+      )
+
+    if (is.null(reference) & !is.null(detection))
+      legend(
+        x = usr[2] * 0.98,
+        y = usr[4] * 0.98,
+        col = col.line[2],
+        legend = c("Detección"),
+        lwd = 4,
+         text.width = 0.3,
+        bg = "#FFFFFFE6",
+        xjust = 1,
+        yjust = 1
+      )
+
+    if (envelope) {
+      # set graphic device for envelope
+      par(mar = c(4,  4,  0.3,  1))
+
+      if (!is.null(smooth))
+        smooth <- round(wave@samp.rate * smooth  / 1000, 0)
+
+      # plot envelope
+      seewave::env(wave, colwave = "#07889B", ssmooth = smooth)
+
+      # add threshold line
+      if (!is.null(threshold))
+        abline(h = par("usr")[4] * threshold / 100,
+               col = col.line[3],
+               lwd = 3)
+    } else
+      if (!is.null(template.correlation)) {
+        # set graphic device for correlations
+        par(mar = c(4,  4,  0.3,  1))
+
+        plot(
+          x = seq(
+            template.correlation$template.duration / 2,
+            duration(wave) - template.correlation$template.duration / 2,
+            length.out = length(template.correlation$correlation.scores)
+          ),
+          y = template.correlation$correlation.scores,
+          type = "l",
+          xlab = "Tiempo (s)",
+          ylab = "Correlación",
+          col = "#07889B",
+          lwd = 1.6,
+          xaxs = "i",
+          xlim  = c(0, duration(wave))
+        )
+
+        # add threshold line
+        if (!is.null(threshold))
+          abline(h = threshold, col = col.line[3], lwd = 3)
+
+      }
+  }
+```
+
+```{r, eval = FALSE}
+
+clim_dat_2020 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2020")
+
+clim_dat_2019 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2019")
+
+clim_dat <- rbind(clim_dat_2019, clim_dat_2020)
+
+clim_dat <- clim_dat[, c("filename", "Año", "Mes", "Día", "Hora", "Temp (°C)", "Humedad Relat.", "Precipitación")]
+
+names(clim_dat) <- c("filename", "year", "month", "day", "hour", "temp", "HR", "rain")
+
+clim_dat <- aggregate(cbind(rain, temp, HR) ~ filename + year + month + day + hour, clim_dat, mean)
+
+clim_dat$year <- clim_dat$year + 2000
+
+clim_dat$date <- as.Date(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"))
+
+
+clim_dat$date_hour <- paste(gsub("-", "", clim_dat$date), clim_dat$hour, sep = "-")
+
+call_dat <- read.csv("./data/processed/call_rate_per_date_time_and_site.csv")
+
+# remove 5 pm data and keep only form Sukia
+call_dat <- call_dat[call_dat$hour != 17, ]
+call_dat <- call_dat[call_dat$site != "LAGCHIMU", ]
+
+
+call_dat$date_hour <- paste(sapply(as.character(call_dat$site_date_hour), function(x) strsplit(x, "_")[[1]][2]), call_dat$hour, sep = "-") 
+
+
+call_dat$temp <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$temp[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+
+call_dat$HR <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$HR[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+
+call_dat$rain <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$rain[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+# proportion of acoustic data with climatic data
+sum(call_dat$date_hour %in% clim_dat$date_hour) / nrow(call_dat)
+sum(!is.na(call_dat$temp)) / nrow(call_dat)
+
+
+call_dat <- call_dat[!is.na(call_dat$temp), ]
+
+call_dat$day <- as.numeric(substr(sapply(as.character(call_dat$site_date_hour), function(x) strsplit(x, "_")[[1]][2]), 7, 8))
+
+call_dat$date <- as.Date(paste(call_dat$year, call_dat$month, call_dat$day, sep = "-"))
+
+call_dat$moon.date <- ifelse(call_dat$hour < 12, as.Date(call_dat$date - 1), as.Date(call_dat$date))
+
+call_dat$moon.date <- as.Date(call_dat$moon.date, origin = "1970-01-02")
+
+## add moon
+call_dat$moonlight <- lunar.illumination(call_dat$moon.date, shift = -6)
+
+
+call_dat$date_hour_min <- strptime(paste(paste(call_dat$year, call_dat$month, call_dat$day, sep = "-"), paste(call_dat$hour, "00", sep = ":")), format="%Y-%m-%d  %H:%M")
+
+call_dat$hour_diff <- as.numeric(call_dat$date_hour_min - min(call_dat$date_hour_min)) / 3600
+
+
+call_dat$rain_24 <- sapply(1:nrow(call_dat), function(x) sum(clim_dat$rain[strptime(clim_dat$date, format="%Y-%m-%d") == (strptime(call_dat$date[x], format="%Y-%m-%d") - 60 * 60 * 24)]))
+
+call_dat$rain_48 <- sapply(1:nrow(call_dat), function(x) sum(clim_dat$rain[strptime(clim_dat$date, format="%Y-%m-%d") == (strptime(call_dat$date[x], format="%Y-%m-%d") - 60 * 60 * 48)]))
+
+clim_dat$date_hour_min <- strptime(paste(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"), paste(clim_dat$hour, "00", sep = ":")), format="%Y-%m-%d %H:%M")
+
+clim_dat$hour_diff <- as.numeric(clim_dat$date_hour_min - min(call_dat$date_hour_min)) / 3600
+
+call_dat$prev_temp <- sapply(1:nrow(call_dat), function(x){
+  
+  # if(call_dat$hour_diff[x] < 48) 
+  #   pt <- NA else
+      pt <- mean(clim_dat$temp[clim_dat$hour_diff %in% (call_dat$hour_diff[x] - 48):(call_dat$hour_diff[x] - 24)])
+    
+    return(pt)
+})
+
+write.csv(call_dat, "./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+```
+
+&nbsp; 
+
+<!-- skyblue box -->
+
+<div class="alert alert-info">
+
+# Purpose
+
+- Evaluate effect of enviromental factors on vocal activity of *A. lemur*
+
+</div>
+
+&nbsp;
+
+## Prepare data
+
+```{r by minute, eval = FALSE, include = FALSE}
+
+clim_dat_2020 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2020")
+
+clim_dat_2019 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2019")
+
+clim_dat <- rbind(clim_dat_2019, clim_dat_2020)
+
+clim_dat <- clim_dat[, c("filename", "Año", "Mes", "Día", "Hora", "Min1", "Temp (°C)", "Humedad Relat.", "Precipitación")]
+
+names(clim_dat) <- c("filename", "year", "month", "day", "hour","min", "temp", "HR", "rain")
+
+clim_dat$year <- clim_dat$year + 2000
+
+clim_dat$date <- as.Date(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"))
+
+clim_dat$date_hour <- paste(gsub("-", "", clim_dat$date), clim_dat$hour, sep = "-")
+
+call_dat <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+sub_clim <- clim_dat[clim_dat$date_hour %in% unique(call_dat$date_hour), ]
+
+sub_clim$n_call <- sapply(sub_clim$date_hour, function(x)  call_dat$n_call[call_dat$date_hour == x])
+
+sub_clim$rec_time <- sapply(sub_clim$date_hour, function(x)  call_dat$rec_time[call_dat$date_hour == x])
+
+sub_clim$call_rate <- sapply(sub_clim$date_hour, function(x)  call_dat$call_rate[call_dat$date_hour == x])
+
+sub_clim$rain_24 <- sapply(sub_clim$date_hour, function(x)  call_dat$rain_24[call_dat$date_hour == x])
+
+sub_clim$rain_48 <- sapply(sub_clim$date_hour, function(x)  call_dat$rain_48[call_dat$date_hour == x])
+
+sub_clim$moonlight <- sapply(sub_clim$date_hour, function(x)  call_dat$moonlight[call_dat$date_hour == x])
+
+sub_clim$date_hour_min <- strptime(paste(paste(sub_clim$year, sub_clim$month, sub_clim$day, sep = "-"), paste(sub_clim$hour, sub_clim$min, sep = ":")), format="%Y-%m-%d  %H:%M")
+
+sub_clim$min_diff <- as.numeric(sub_clim$date_hour_min - min(sub_clim$date_hour_min)) / 60
+
+write.csv(sub_clim, "./data/processed/acoustic_and_climatic_data_by_min.csv", row.names = FALSE)
+
+```
+
+## Descriptive stats
+```{r}
+
+call_dat_site <- read.csv("./data/processed/call_rate_per_date_time_and_site.csv")
+
+```
+
+- Total number of recordings: `r nrow(call_dat_site)`
+- Total recordings per site:
+
+```{r, results='asis'}
+
+agg_recs <- aggregate(rec_time ~ site, data = call_dat_site, length)
+names(agg_recs)[1:2] <- c("site", "rec_count")
+
+# print table as kable  
+kb <-kable(agg_recs, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+- Total recording time: `r round(sum(call_dat_site$rec_time) / 60)`
+
+- Total recording time per site:
+
+```{r, results='asis'}
+
+agg_recs <- aggregate(rec_time ~ site, data = call_dat_site, sum)
+names(agg_recs)[1:2] <- c("site", "recording_time")
+
+agg_recs$recording_time <- round((agg_recs$recording_time) / 60)
+
+# print table as kable  
+kb <-kable(agg_recs, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+- Total detections: `r sum(call_dat_site$n_call)`
+
+- Total detections per site:
+
+```{r, results='asis'}
+
+agg_recs <- aggregate(n_call ~ site, data = call_dat_site, sum)
+names(agg_recs)[1:2] <- c("calls", "count")
+
+# print table as kable  
+kb <-kable(agg_recs, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+- Call rate: `r mean(call_dat_site$call_rate)`
+
+- Call rate per site:
+
+```{r, results='asis'}
+
+agg_recs <- aggregate(call_rate ~ site, data = call_dat_site, mean)
+agg_recs$sd <- aggregate(call_rate ~ site, data = call_dat_site, sd)[,2]
+
+names(agg_recs)[1:3] <- c("site", "call_rate", "sd")
+
+# print table as kable  
+kb <-kable(agg_recs, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+```{r, eval = TRUE, results='asis'}
+
+call_rate_hour <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+
+agg <- aggregate(cbind(temp, prev_temp, HR, rain, rain_24, rain_48, moonlight)~1, call_rate_hour, function(x) round(c(mean(x), sd(x), min(x), max(x)), 3))
+
+agg <- as.data.frame(matrix(unlist(agg), ncol = 4, byrow = TRUE, dimnames = list(c("Temperature", "Previous temperature", "Relative humidity", "Night rain", "Rain 24 hours", "Rain 48 hours", "Moonlight"),c("mean", "sd", "min", "max"))))
+# print table as kable  
+kb <-kable(agg, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+Mean and sd temperature: `r mean(call_rate_hour$temp)`
+
+Mean previous temperature: `r mean(call_rate_hour$prev_temp)`
+
+Mean temperature: `r mean(call_rate_hour$temp)`
+
+Mean cumulative rain per hour: `r mean(call_rate_hour$rain)`
+
+Mean cumulative rain per hour previous 24 hours: `r mean(call_rate_hour$rain_24)`
+
+Mean daily cumulative rain per hour previous 48 hours: `r mean(call_rate_hour$rain_48)`
+
+
+
+
+# Bayesian regression models
+
+Scale variables and set model parameters 
+```{r prepare data for models, eval = TRUE}
+
+call_rate_hour <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+# make hour a factor
+call_rate_hour$hour <- factor(call_rate_hour$hour)
+
+# scale and mean-center
+call_rate_hour$sc_temp <- scale(call_rate_hour$temp)
+call_rate_hour$sc_HR <- scale(call_rate_hour$HR)
+call_rate_hour$sc_rain <- scale(call_rate_hour$rain)
+call_rate_hour$sc_rain_24 <- scale(call_rate_hour$rain_24)
+call_rate_hour$sc_rain_48 <- scale(call_rate_hour$rain_48)
+call_rate_hour$sc_moonlight <- scale(call_rate_hour$moonlight)
+call_rate_hour$sc_prev_temp <- scale(call_rate_hour$prev_temp)
+
+priors <- c(prior(normal(0, 4), class = "b"))
+chains <- 4
+iter <- 10000
+
+```
+
+## Global models
+
+The increase in relative humidity, decrease in temperature, increase in the previous accumulated rain, decrease in the night rain, decrease in the percentage of the moon illuminated cause the activity of A. lemur to increase? 
+
+```{r, eval = FALSE}
+
+fit_glob1 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_24 + sc_prev_temp + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/global_rain_24", file_refit = "always")
+
+
+fit_glob2 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_48 + sc_prev_temp + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/global_rain_48", file_refit = "always")
+
+
+```
+
+```{r, eval = TRUE, results='asis'}
+ 
+extended_summary(read.file = "./data/processed/regression_models/global_rain_24.rds", n.posterior = 1000)
+
+extended_summary(read.file = "./data/processed/regression_models/global_rain_48.rds", n.posterior = 1000)
+
+```
+
+
+## Temperature
+
+The increase in temperature at night causes that activity of A. lemur to decrease? 
+
+```{r, eval= FALSE}
+
+fit2.1 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_rain + sc_rain_24 + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/temp2.1", file_refit = "always") 
+
+fit2.2 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_rain + sc_rain_48 + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/temp2.2", file_refit = "always")
+
+fit2.3 <- brm(n_call | resp_rate(rec_time) ~ sc_prev_temp + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/temp2.3", file_refit = "always")
+
+```
+
+```{r, eval = TRUE, results='asis'}
+
+extended_summary(read.file = "./data/processed/regression_models/temp2.1.rds", n.posterior = 1000)
+
+extended_summary(read.file = "./data/processed/regression_models/temp2.2.rds", n.posterior = 1000)
+
+extended_summary(read.file = "./data/processed/regression_models/temp2.3.rds", n.posterior = 1000)
+```
+
+##  Relative humidity
+
+Does an increase in relative humidity cause the activity of A. lemur to increase? 
+
+```{r, eval= FALSE}
+
+fit.3.1 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_rain + sc_rain_24  + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/RH3.1", file_refit = "always")
+
+fit.3.2 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_rain + sc_rain_48  + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/RH3.2", file_refit = "always") # Este tengo que doblemente confirmarlo
+```
+
+```{r, eval = TRUE, results='asis'}
+
+extended_summary(read.file = "./data/processed/regression_models/RH3.1.rds", n.posterior = 1000)
+
+extended_summary(read.file = "./data/processed/regression_models/RH3.2.rds", n.posterior = 1000)
+
+```
+
+## Moon
+
+Decreasing the percentage of the moon illuminated causes an increase in A. lemur activity?
+
+```{r, eval= FALSE}
+
+fit.4 <- brm(n_call | resp_rate(rec_time) ~  sc_moonlight + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/moon4", file_refit = "always")
+
+```
+
+```{r, eval = TRUE, results='asis'}
+
+extended_summary(read.file = "./data/processed/regression_models/moon4.rds", n.posterior = 1000)
+
+```
+
+## Night rain
+
+If the night rain decreases can affect the A. lemur activity to increase?
+
+```{r, eval= FALSE}
+
+fit.5.1 <- brm(n_call | resp_rate(rec_time) ~  sc_prev_temp + sc_rain + sc_rain_48  + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/night_rain5.1", file_refit = "always")
+
+fit.5.2 <- brm(n_call | resp_rate(rec_time) ~  sc_prev_temp + sc_rain + sc_rain_24  + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/night_rain5.2", file_refit = "always")
+
+
+```
+
+```{r, eval = TRUE, results='asis'}
+
+extended_summary(read.file = "./data/processed/regression_models/night_rain5.1.rds", n.posterior = 1000)
+
+extended_summary(read.file = "./data/processed/regression_models/night_rain5.2.rds", n.posterior = 1000)
+
+```
+
+## Previous Rain
+
+Does an increase in the accumulated previous rain causes that A. lemur activity to increase?
+
+```{r, eval= FALSE}
+
+fit.6.1 <- brm(n_call | resp_rate(rec_time) ~ sc_temp +  sc_rain  + sc_rain_48 + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/previous_rain6.1", file_refit = "always")
+
+fit.6.2 <- brm(n_call | resp_rate(rec_time) ~ sc_temp +  sc_rain + sc_rain_24  + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/previous_rain6.2", file_refit = "always")
+
+fit.6.3 <- brm(n_call | resp_rate(rec_time) ~ sc_temp + sc_HR + sc_rain_24 + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, file = "./data/processed/regression_models/night_rain6.3", file_refit = "always")
+```
+
+```{r, eval = TRUE, results='asis'}
+
+extended_summary(read.file = "./data/processed/regression_models/previous_rain6.1.rds", n.posterior = 1000)
+
+extended_summary(read.file = "./data/processed/regression_models/previous_rain6.2.rds", n.posterior = 1000)
+
+extended_summary(read.file = "./data/processed/regression_models/night_rain6.3.rds", n.posterior = 1000)
+
+```
+
+# Causal model combined effect size plot
+
+Takes the effect sizes (and posteriors) from the right causal models
+```{r}
+
+coef_table <- read.csv("./data/processed/summary_causal_model_table_13-01-23.csv", sep = "\t")
+
+coef_table$variable <- coef_table$Label
+coef_table$value <- coef_table$Estimate
+coef_table$significance <- ifelse(coef_table$CI_low * coef_table$CI_high > 0, "sig", "no.sig")
+
+posteriors_l <- lapply(1:nrow(coef_table), function(x){
+
+  # print(x)
+  X <- readRDS(coef_table$Model[x])
+  xdrws <- brms::as_draws(X)
+  post <- xdrws$`1`[[paste0("b_", coef_table$Variable[x])]] 
+  out <- data.frame(variable = coef_table$Label[x], value = post, significance = coef_table$significance[x])
+  return(out)
+})
+
+posteriors <- do.call(rbind, posteriors_l)
+
+coef_table$variable <- factor(coef_table$Label, levels = sort(unique(coef_table$Label), FALSE))
+posteriors$variable <- factor(posteriors$variable, levels = sort(unique(posteriors$variable), TRUE))
+
+
+fill_values <- c("#FFB9DF", "#FF7598")
+fill_values <- adjustcolor(fill_values, alpha.f = 0.5)
+
+# creat plots
+    # gg_dists <-
+      ggplot2::ggplot(data = posteriors, ggplot2::aes(y = variable, x = value, fill = significance)) +
+      ggplot2::geom_vline(xintercept = 0,
+                          col = "black",
+                          lty = 2) +
+      ggdist::stat_halfeye(
+        ggplot2::aes(x = value),
+        .width = c(.95),
+        normalize = "panels",
+        color = "transparent"
+      ) +
+      ggplot2::scale_fill_manual(values = fill_values, guide = 'none') +
+      ggplot2::geom_point(data = coef_table) +
+      ggplot2::geom_errorbar(data = coef_table,
+                             ggplot2::aes(xmin = CI_low, xmax = CI_high),
+                             width = 0) +
+      ggplot2::scale_color_manual(values = coef) +
+      ggplot2::facet_wrap(
+        ~ variable,
+        scales = "free_y",
+        ncol = 1
+      ) +
+      ggplot2::theme_classic() +
+      ggplot2::theme(
+        axis.ticks.length = ggplot2::unit(0, "pt"),
+        plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+        legend.position = "none",
+        strip.background = ggplot2::element_blank(),
+        strip.text = ggplot2::element_blank()
+      ) +
+      ggplot2::labs(x = "Effect size", y = "Parameter") #+
+
+      # ggplot2::xlim(range(c(posteriors_by_chain$value, 0)) * plot.area.prop)
+
+      ggsave(filename =
+               "./figures/summary_effect_sizes_pooled_from_multiple_causal_models.jpeg")
+```
+
+
+```{r, subset for presentation, eval = FALSE}
+
+coef_table <- read.csv("./data/processed/summary_causal_model_table_13-01-23.csv", sep = "\t")
+
+coef_table <- coef_table[coef_table$Label %in% c("Temperature (day-1 rain)", "Previous mean temperature", "Relative humidity (day-1 rain)", "Moonlight", "Night Rain (day-1 rain)", "Previous day-1 rain", "Previous day-2 rain"), ]
+
+coef_table$variable <- coef_table$Label
+coef_table$value <- coef_table$Estimate
+coef_table$significance <- ifelse(coef_table$CI_low * coef_table$CI_high > 0, "sig", "no.sig")
+
+posteriors_l <- lapply(1:nrow(coef_table), function(x){
+
+  # print(x)
+  X <- readRDS(coef_table$Model[x])
+  xdrws <- brms::as_draws(X)
+  post <- xdrws$`1`[[paste0("b_", coef_table$Variable[x])]] 
+  out <- data.frame(variable = coef_table$Label[x], value = post, significance = coef_table$significance[x])
+  return(out)
+})
+
+posteriors <- do.call(rbind, posteriors_l)
+
+coef_table$variable <- factor(coef_table$Label, levels = sort(unique(coef_table$Label), FALSE))
+posteriors$variable <- factor(posteriors$variable, levels = sort(unique(posteriors$variable), TRUE))
+
+
+fill_values <- c("#FFB9DF", "#FF7598")
+fill_values <- adjustcolor(fill_values, alpha.f = 0.5)
+
+# creat plots
+    # gg_dists <-
+      ggplot2::ggplot(data = posteriors, ggplot2::aes(y = variable, x = value, fill = significance)) +
+      ggplot2::geom_vline(xintercept = 0,
+                          col = "black",
+                          lty = 2) +
+      ggdist::stat_halfeye(
+        ggplot2::aes(x = value),
+        .width = c(.95),
+        normalize = "panels",
+        color = "transparent"
+      ) +
+      ggplot2::scale_fill_manual(values = fill_values, guide = 'none') +
+      ggplot2::geom_point(data = coef_table) +
+      ggplot2::geom_errorbar(data = coef_table,
+                             ggplot2::aes(xmin = CI_low, xmax = CI_high),
+                             width = 0) +
+      ggplot2::scale_color_manual(values = coef) +
+      ggplot2::facet_wrap(
+        ~ variable,
+        scales = "free_y",
+        ncol = 1
+      ) +
+      ggplot2::theme_classic() +
+      ggplot2::theme(
+        axis.ticks.length = ggplot2::unit(0, "pt"),
+        plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+        legend.position = "none",
+        strip.background = ggplot2::element_blank(),
+        strip.text = ggplot2::element_blank()
+      ) +
+      ggplot2::labs(x = "Effect size", y = "Parameter") #+
+
+      # ggplot2::xlim(range(c(posteriors_by_chain$value, 0)) * plot.area.prop)
+
+      ggsave(filename =
+               "./figures/summary_effect_sizes_pooled_from_multiple_causal_models.jpeg")
+```
+
+# Conditional plots
+
+Measured based on the global model
+
+## Rain and temperature
+```{r, eval = TRUE}
+
+glob_mod_24 <- readRDS("./data/processed/regression_models/global_rain_24.rds")
+
+conditions <- data.frame(sc_temp = c(`Low temperature` = -1, `Mean temperature` = 0, `High temperature` = 1))
+
+rain_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 520)) + ggtitle("Current rain") +  labs(x = "Rain", y = "Call activity (calls/hour)")
+
+rain24_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain_24", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 520)) + ggtitle("Previous 24h rain") + labs(x = "Rain", y = "Call activity (calls/hour)") 
+
+glob_mod_48 <- readRDS("./data/processed/regression_models/global_rain_48.rds")
+
+rain48_gg <- plot(conditional_effects(glob_mod_48, effects = "sc_rain_48", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 520)) + ggtitle("Previous 48h rain") + labs(x = "Rain", y = "Call activity (calls/hour)")
+
+
+cowplot::plot_grid(rain_gg, rain24_gg, rain48_gg, nrow = 3)
+
+```
+
+## Relative humidity and temperature
+```{r, eval = TRUE}
+
+conditions <- data.frame(sc_temp = c(`Low temperature` = -1, `Mean temperature` = 0, `High temperature` = 1))
+
+hr_temp_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Relative humidity", y = "Call activity (calls/hour)")
+
+hr_temp_gg
+
+conditions <- data.frame(sc_HR = c(`Low humidity` = -1, `Mean humidity` = 0, `High humidity` = 1))
+
+temp_hr_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_temp", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Temperature", y = "Call activity (calls/hour)")
+
+temp_hr_gg
+
+```
+
+## Relative humidity and rain
+```{r, eval = TRUE}
+
+conditions <- data.frame(sc_rain = c(`Low rain` = -1, `Mean rain` = 0, `High rain` = 1))
+
+
+rain_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 75)) + ggtitle("Current rain")
+
+rain24_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 75)) + ggtitle("Previous 24h rain") 
+
+rain48_gg <- plot(conditional_effects(glob_mod_48, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 75)) + ggtitle("Previous 48h rain") 
+
+cowplot::plot_grid(rain_gg, rain24_gg, rain48_gg, nrow = 3)
+
+
+conditions <- data.frame(sc_HR = c(`Low humidity` = -1, `Mean humidity` = 0, `High humidity` = 1))
+
+rain_hr_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ggtitle("Current rain") + labs(x = "Rain", y = "Call activity (calls/hour)")
+
+rain24_hr_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain_24", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ggtitle("Previous 24h rain") + labs(x = "Rain previous", y = "Call activity (calls/hour)")
+
+rain48_hr_gg <- plot(conditional_effects(glob_mod_48, effects = "sc_rain_48", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ggtitle("Previous 48h rain") + labs(x = "Rain previous", y = "Call activity (calls/hour)")
+
+cowplot::plot_grid(rain_hr_gg, rain24_hr_gg, rain48_hr_gg, nrow = 3)
+
+```
+
+## Moonlight and temperature
+
+```{r, eval = TRUE}
+
+conditions <- data.frame(sc_temp = c(`Low temperature` = -1, `Mean temperature` = 0, `High temperature` = 1))
+
+moon_temp_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_moonlight", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Moonlight", y = "Call activity (calls/hour)")
+
+moon_temp_gg
+
+conditions <- data.frame(sc_moonlight = c(`Low moonlight` = -1, `Mean moonlight` = 0, `High moonlight` = 1))
+
+temp_moon_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_temp", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Temperature", y = "Call activity (calls/hour)")
+
+temp_moon_gg
+
+```
+
+
+```{r, eval = FALSE}
+# st <- data.frame(sound.files = "FIGURA_LEMUR.wav", selec = 1, start = 0.1, end = 0.4)
+
+# tweak_spectro(st, length.out = 20, ovlp = 99, wl = c(100, 1000), pal = c("reverse.gray.colors.2", "viridis", "reverse.terrain.colors"), path = "./figures/Figura_canto_lemur", flim = c(1, 4), ncol = 10, nrow = 6, width = 15, collev.min = c(-110))
+
+wav <- readWave("./figures/Figura_canto_lemur/FIGURA_LEMUR.wav")
+
+graphics.off()
+par(mfrow = c(2, 1), mar = c(0, 4, 4, 1))
+
+warbleR:::spectro_wrblr_int2(wav, flim = c(1, 4), wl = 700, grid = F, collevels = seq(-125, 0 ,1), ovlp = 0, palette = viridis, axisX = FALSE)
+
+peaks <- c(0.320165, 0.9, 1.7, 2.6, 3.5, 4.2, 4.5) # + seq(-0.1, 0.2, length.out = 7)
+valleys <- seq(0, duration(wav) + 0.3, length.out = 100)
+
+cor_dat <- data.frame(time = c(peaks, valleys), cor = c(rep(0.7, length(peaks)), rep(0.1, length(valleys))))
+
+cor_dat$cor <- cor_dat$cor  + rnorm(nrow(cor_dat), sd = 0.03)
+cor_dat$cor <- smoothw(cor_dat$cor, wl=2, f = 10)
+
+
+cor_dat <- cor_dat[order(cor_dat$time),]
+
+par(mar = c(2, 4, 0, 1))
+
+plot(cor_dat$time, cor_dat$cor, type = "l", xaxs="i")
+
+
+
+spectro(wav, flim = c(1, 4), wl = 700, grid = F, collevels = seq(-125, 0 ,1), ovlp = 99, palette = viridis, axisX = FALSE, tlim = c(1.53, 1.63), scale = FALSE, flab = "Frecuencia (kHz)", tlab = "Tiempo (s)")
+
+```
+
+
+```{r, eval = FALSE}
+
+template <- data.frame(sound.files = "FIGURA_LEMUR.wav", selec = 1, start = 1.55, end = 1.61, bottom.freq = 2, top.freq = 3)
+
+
+# get correlations
+correlations <-
+  template_correlator(templates = template,
+                      files = "FIGURA_LEMUR.wav",
+                      path = "./figures/Figura_canto_lemur/")
+
+
+thresh <- 0.7
+# run detection
+detection <-
+  template_detector(template.correlations = correlations, threshold = thresh)
+
+reference <-
+  template_detector(template.correlations = correlations, threshold = 0.55)
+detection
+
+
+# plot spectrogram
+label_spectro_temp(
+  wave = wav,
+  reference = reference,
+  detection = detection,
+  template.correlation = correlations[[1]],
+  flim = c(1, 4),
+  threshold = thresh,
+  hop.size = 10, ovlp = 50, collevels = seq(-125, 0 ,1), 
+  col.line = c("#AFBF35","#F20505", "#F2622E"),
+   flab = "Frecuencia (kHz)", tlab = "Tiempo (s)")
+
+#012623 
+#034941 
+#AFBF35 
+#F2622E 
+#F20505
+
+
+
+```
+
+---
+
+
+<!-- light green box -->
+
+<div class="alert alert-success">
+
+&nbsp; 
+
+# Takeaways
+
+- 
+
+</div>
+
+&nbsp;
+
+<div class="alert alert-info">
+
+# Sum up results
+
+-  
+
+</div>
+
+
+# Next steps
+
+- 
+
+&nbsp; 
+
+---
+
+<font size="4">Session information</font>
+
+```{r session info, echo=F, eval = TRUE}
+
+sessionInfo()
+
+```

@@ -1,0 +1,833 @@
+---
+title: "Template validation"
+author: "Beatriz Willink y Fabiola Chirino"
+date: "10/9/2020"
+output: 
+  html_document:
+    theme: united
+    highlight: tango
+    number_sections: true
+    toc: true
+    toc_float: true
+    
+---
+```{r setup, include=FALSE,eval=FALSE}
+knitr::opts_knit$set(root.dir = "..", eval = TRUE)
+```
+
+
+Load required packages 
+```{r, message=FALSE}
+require(monitoR)
+require(ggplot2)
+require(wesanderson)
+```
+
+
+```{r message=FALSE}
+timeAlign2 <- function (x, what = "detections", tol = 1) 
+{
+  tol <- 0.5 * tol
+  if (class(x) == "detectionList" && tolower(what) %in% c("detections", 
+                                                          "d", "det")) {
+    cat("Getting detections\n")
+    all.results <- getDetections(x)
+  }
+  else if (class(x) == "detectionList" && tolower(what) %in% 
+           c("peaks", "p", "pks")) {
+    cat("Getting peaks\n")
+    all.results <- getPeaks(x)
+  }
+  else if (class(x) == "data.frame") {
+    all.results <- x
+  }
+  else if (class(x) == "list") {
+    check.class <- unlist(lapply(as.list(x), function(file) class(file)))
+    if (all(check.class == "character")) {
+      all.results <- lapply(x, function(file) {
+        chars <- nchar(file)
+        ext <- tolower(gsub(".*\\.", "", file))
+        if (all(ext == "csv")) {
+          all.results <- lapply(x, function(data) read.csv(data, 
+                                                           stringsAsFactors = FALSE))
+        }
+        else stop("x must be a csv file.")
+        return(all.results)
+      })
+    }
+    else if (all(check.class == "data.frame")) 
+      all.results <- rbindf(x)
+  }
+  else stop("x is unfamiliar; must be detectionList, data frame, or a list of either data frames or file paths to csv files.")
+  colNm <- names(all.results)
+  all.results <- all.results[, colNm]
+  names.res <- names(all.results)
+  if (all(c("fldTime", "fldTemplateName", "fldScore") %in% 
+          names.res)) {
+    time.fld <- "fldTime"
+    temp.fld <- "fldTemplateName"
+    scor.fld <- "fldScore"
+    onAmp.fld <- "fldOnAmp"
+    offAmp.fld <- "fldOffAmp"
+  }
+  else if (all(c("time", "template", "score") %in% names.res)) {
+    time.fld <- "time"
+    temp.fld <- "template"
+    scor.fld <- "score"
+    onAmp.fld <- "on.amp"
+    offAmp.fld <- "off.amp"
+  }
+  else stop("Unrecognized column names.  x must be from findPeaks or from an acoustics database.")
+  if (any(c("fldOnAmp", "fldOffAmp", "on.amp", "off.amp") %in% 
+          names.res)) {
+    report.amp <- TRUE
+  }
+  else report.amp <- FALSE
+  all.results <- all.results[order(all.results[, time.fld]), 
+                             ]
+  row.names(all.results) <- 1:nrow(all.results)
+  nRows <- nrow(all.results)
+  earlytimes <- all.results[c(1:(nRows - 1)), time.fld]
+  latetimes <- all.results[c(2:nRows), time.fld]
+  same1below <- c(earlytimes + tol >= latetimes & earlytimes + 
+                    tol <= latetimes + tol, FALSE)
+  same1above <- c(FALSE, earlytimes + tol >= latetimes & earlytimes + 
+                    tol <= latetimes + tol)
+  group <- same1above * same1below
+  nTimes <- nScore <- nOnAmp <- nOffAmp <- nTemplateName <- rep(NA, 
+                                                                nRows)
+  groupID <- rep(NA, nRows)
+  gid <- 1
+  if (nRows > 2) {
+    for (i in 2:(nRows - 1)) {
+      if (group[i]) {
+        groupID[(i - 1):(i + 1)] <- gid
+      }
+      else if (!group[i] & group[i - 1])
+        gid <- gid + 1
+    }
+  } else
+  {
+    for (i in 2:2) {
+      if (group[i]) {
+        groupID[(i - 1):(i + 1)] <- gid
+      }
+      else if (!group[i] & group[i - 1])
+        gid <- gid + 1
+    }
+  }
+  for (i in na.omit(unique(groupID))) {
+    rID <- which(groupID == i)
+    num.evt <- length(rID)
+    rmaxscor <- rID[which(all.results[rID, scor.fld] == 
+                            max(all.results[rID, scor.fld]))]
+    if (length(rmaxscor) > 1) 
+      rmaxscor <- rmaxscor[1]
+    nScore[rID] <- rep(all.results[rmaxscor, scor.fld], 
+                       num.evt)
+    nTimes[rID] <- rep(all.results[rmaxscor, time.fld], 
+                       num.evt)
+    if (report.amp) {
+      nOnAmp[rID] <- rep(all.results[rmaxscor, onAmp.fld], 
+                         num.evt)
+      nOffAmp[rID] <- rep(all.results[rmaxscor, offAmp.fld], 
+                          num.evt)
+    }
+    nTemplateName[rID] <- rep(all.results[rmaxscor, temp.fld], 
+                              num.evt)
+  }
+  groupID <- rep(NA, nRows)
+  gid <- 0
+  for (i in 1:nRows) {
+    if (any(same1above[i], same1below[i]) && is.na(nScore[i])) {
+      if (same1above[i]) 
+        groupID[i] <- gid
+      else {
+        gid <- gid + 1
+        groupID[i] <- gid
+      }
+    }
+  }
+  for (i in na.omit(unique(groupID))) {
+    rID <- which(groupID == i)
+    num.evt <- length(rID)
+    rmaxscor <- rID[which(all.results[rID, scor.fld] == 
+                            max(all.results[rID, scor.fld]))]
+    if (length(rmaxscor) > 1) 
+      rmaxscor <- rmaxscor[1]
+    nScore[rID] <- rep(all.results[rmaxscor, scor.fld], 
+                       num.evt)
+    nTimes[rID] <- rep(all.results[rmaxscor, time.fld], 
+                       num.evt)
+    if (report.amp) {
+      nOnAmp[rID] <- rep(all.results[rmaxscor, onAmp.fld], 
+                         num.evt)
+      nOffAmp[rID] <- rep(all.results[rmaxscor, offAmp.fld], 
+                          num.evt)
+    }
+    nTemplateName[rID] <- rep(all.results[rmaxscor, temp.fld], 
+                              num.evt)
+  }
+  rID <- which(is.na(nScore))
+  nScore[rID] <- all.results[rID, scor.fld]
+  nTimes[rID] <- all.results[rID, time.fld]
+  if (report.amp) {
+    nOnAmp[rID] <- all.results[rID, onAmp.fld]
+    nOffAmp[rID] <- all.results[rID, offAmp.fld]
+  }
+  nTemplateName[rID] <- all.results[rID, temp.fld]
+  all.results[time.fld] <- nTimes
+  all.results[scor.fld] <- nScore
+  if (report.amp) {
+    all.results[onAmp.fld] <- nOnAmp
+    all.results[offAmp.fld] <- nOffAmp
+  }
+  all.results[temp.fld] <- nTemplateName
+  goodRows <- cbind(all.results[time.fld], all.results[scor.fld])
+  goodRows <- unique(goodRows)
+  goodRows <- as.numeric(row.names(goodRows))
+  all.results <- all.results[goodRows, ]
+  row.names(all.results) <- 1:nrow(all.results)
+  return(all.results)
+}
+
+
+
+
+
+
+```
+
+
+```{r, message=FALSE}
+# Set .wav player
+setWavPlayer("play")
+```
+
+## Rename recordings
+
+This helps MonitoR read the recording metadata correctly. The function fileCopyRename changed the dates in the metadata, so we do it manually (for now).
+
+### **Note**
+
+All recordings have been previously copied to the directory "Fixed_names".
+
+This should work with relative paths, but it doesn't... So we are using the absolute path instead
+```{r}
+
+getwd()
+
+path.start= "../"
+```
+
+
+```{r, message=FALSE, eval=FALSE}
+# fnames <-
+#   dir(path = paste0(path.start, "data/Processed/Fixed_Names/"),
+#       full.names = T,
+#       recursive = T)
+# 
+# # Agregamos un guion despues del anio y mes
+# n.fnames <-
+#   gsub(pattern = "(A_[0-9]{4})" ,
+#        replacement = "\\1-",
+#        x = fnames)
+# n.fnames <-
+#   gsub(pattern = "(A_[0-9]{4}-[0-9]{2})" ,
+#        replacement = "\\1-",
+#        x = n.fnames)
+# 
+# #Agregamos la zona horaria
+# n.fnames <-
+#   gsub(pattern = "(.wav)" ,
+#        replacement = "_UTC-6\\1",
+#        x = n.fnames)
+
+#Actualizamos los nombres
+#file.rename(fnames, n.fnames)
+```
+
+## Clip 5 min surveys
+
+This is needed for old recordings that are 20 min long. We only need the first and final 5 min of each
+```{r, eval=TRUE}
+# First 5 min
+for (i in 1:length(n.fnames)) {
+  # read in the first 5 min
+  rectemp <-
+    readWave(paste0(n.fnames[i]),
+             from = 0,
+             to = 300,
+             units = "seconds")
+  
+  # change time to end of recording
+  f.time <- gsub(
+    pattern = "0000",
+    replacement = "0500",
+    x = paste0(n.fnames[i])
+  )
+  
+  # change directory for trimmed recordings
+  n.name <-
+    gsub(pattern = "Fixed_Names/",
+         replacement = "Five_Min_Recs/",
+         x = f.time)
+  
+  #write file with new name
+  writeWave(object = rectemp, filename = paste0(n.name))
+}
+
+# Final 5 min
+for (i in 1:length(n.fnames)) {
+  # read in the first 5 min
+  rectemp <-
+    readWave(paste0(n.fnames[i]),
+             from = 900,
+             to = 1200,
+             units = "seconds")
+  
+  # change time to end of recording
+  f.time <- gsub(
+    pattern = "0000",
+    replacement = "2000",
+    x = paste0(n.fnames[i])
+  )
+  
+  # change directory for trimmed recordings
+  n.name <-
+    gsub(pattern = "Fixed_Names/",
+         replacement = "Five_Min_Recs/",
+         x = f.time)
+  
+  #write file with new name
+  writeWave(object = rectemp, filename = paste0(n.name))
+}
+
+# Create monitoR metadata in case we need them later
+# Again we are using absolute paths out of need
+fileCopyRename(
+  files = dir(
+    path = paste0(path.start, "data/Processed/Five_Min_Recs/"),
+    full.names = T
+  ),
+  to = paste0(path.start, "data/Processed/Five_Min_Recs/"),
+  csv.dir = paste0(path.start, "data/Processed/Five_Min_Recs/"),
+  loc.prefix = "SUKIAP",
+  csv.name = "ValidacionMetadata.csv",
+  ext = "wav",
+  rec.tz = "UTC-6",
+  full.survey.names = F,
+  metadata.only = T,
+  rename = F,
+  copy = F
+)
+```
+
+## Templates
+
+Read in recordings used for templates
+
+```{r, eval= FALSE}
+
+
+
+
+# Template 3: SUKIA_20190906_21000.wav (21:05 2 cantos en 1 mismo segundo)
+rec3 <- readWave(paste0(path.start,
+                        "data/Raw/SUKIA_20190906_210000.wav"))
+rec3<-cutWave(rec3,from=180, to=181)
+writeWave(rec3,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20190906_21_05pm.wav"
+          ))
+
+
+
+# Template 5: SUKIA_20191011_21000.wav (21:05, lluvia y actividad lemur)
+rec5 <- readWave(paste0(path.start,
+                        "data/Raw/SUKIA_20191011_210000.wav"))
+rec5 <- cutWave(rec5, from = 7, to = 8)
+writeWave(rec5,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191011_21_05pm.wav"
+          ))
+
+
+# Template8: SUKIA_20191102_22000.wav (22:05, poca actividad)
+rec8 <- readWave(paste0(path.start,
+                        "data/Raw/SUKIA_20191102_220000.wav"))
+rec8 <- cutWave(rec8, from = 27, to = 28)
+writeWave(rec8,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191102_22_05pm.wav"
+          ))
+
+# Template 9: SUKIA_20191101_18000.wav (18:05, poca actividad)
+rec9 <- readWave(paste0(path.start,
+                        "data/Raw/SUKIA_20191101_180000.wav"))
+rec9 <- cutWave(rec9, from = 134, to = 135)
+writeWave(rec9,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191101_18_05pm.wav"
+          ))
+
+# Template 10: SUKIA_20191204_010000.wav (01:05, actividad de Cruziohyla y Lemur)
+rec10 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191204_010000.wav"))
+rec10 <- cutWave(rec10, from = 83, to = 84)
+writeWave(rec10,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191204_01_05pm.wav"
+          ))
+
+# Template 11: SUKIA_20191219_22000.wav (22:05, mucha actividad Lemur)
+rec11 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191219_220000.wav"))
+rec11 <- cutWave(rec11, from = 10, to = 11)
+writeWave(rec11,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191219_22_05pm.wav"
+          ))
+
+# Template 12: SUKIA_20191215_040000.wav (04:15, muy poca actividad)
+rec12 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191215_040000.wav"))
+rec12 <- cutWave(rec12, from = 987, to = 988)
+writeWave(rec12,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191215_04_15pm.wav"
+          ))
+
+
+
+# Template 16: SUKIA_20191126_22000.wav (22:15, actividad #2)
+rec16 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191202_200000.wav"))
+rec16 <- cutWave(rec16, from = 902, to = 903)
+writeWave(rec16,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191202_20_00pm.wav"
+          ))
+
+# Template 17: SUKIA_20200102_23000.wav (23:15 mucha mucha actividad)
+rec17 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20200102_230000.wav"))
+rec17 <- cutWave(rec17, from = 911, to = 912)
+writeWave(rec17,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20200102_23_15pm.wav"
+          ))
+
+
+# Template 19: SUKIA_20200131_030000.wav (03:15)
+rec19 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20200131_030000.wav"))
+rec19 <- cutWave(rec19, from = 977, to = 978)
+writeWave(rec19,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20200131_03_15pm.wav"
+          ))
+
+# Template 21: SUKIA_20200204_040000.wav (04:05)
+rec21 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20200204_040000.wav"))
+rec21 <- cutWave(rec21, from = 185, to = 186)
+writeWave(rec21,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20200204_04_05pm.wav"
+          ))
+
+# Template 22: SUKIA_20191030_010000.wav (01:05)
+rec22 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191030_010000.wav"))
+rec22 <- cutWave(rec22, from = 203, to = 204)
+writeWave(rec22,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191030_01_05pm.wav"
+          ))
+
+# Template 23: SUKIA_20191119_20000.wav
+rec23 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191119_200000.wav"))
+rec23 <- cutWave(rec23, from = 35, to = 36)
+writeWave(rec23,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_220191119_20_05pm.wav"
+          ))
+
+# Template 24: Data/SUKIA_20191020_22000.wav (22:15)
+rec24 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191020_220000.wav"))
+rec24 <- cutWave(rec24, from = 915, to = 916)
+writeWave(rec24,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191020_22_15pm.wav"
+          ))
+
+#Template 25: Data/SUKIA_20191113_21000.wav (21:05)
+rec25 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191113_210000.wav"))
+rec25 <- cutWave(rec25, from = 948, to = 949)
+writeWave(rec25,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191113_21_05pm.wav"
+          ))
+
+#Template 26: Data/SUKIA_20191220_18000.wav (18:15)
+rec26 <- readWave(paste0(path.start,
+                         "data/Raw/SUKIA_20191220_180000.wav"))
+rec26 <- cutWave(rec26, from = 912, to = 913)
+writeWave(rec26,
+          paste0(
+            path.start,
+            "data/Processed/templates/rec_20191220_18_15pm.wav"
+          ))
+```
+
+Create templates from clipped recordings
+```{r}
+
+
+temp.3 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20190906_21_05pm.wav"
+    ),
+    name = "T3",
+    t.lim = c(0, 0.35),
+    frq.lim = c(2.2, 3.1))
+
+temp.5 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191011_21_05pm.wav"
+    ),
+    name = "T5",
+    t.lim = c(0 , 0.3),
+    frq.lim = c(2, 3)) 
+
+
+temp.8 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191102_22_05pm.wav"
+    ),
+    name = "T8",
+    t.lim = c(0.4 , 0.7),
+    frq.lim = c(2.1, 3)
+  )
+
+temp.9 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191102_22_05pm.wav"
+    ),
+    name = "T9",
+    t.lim = c(0.32 , 0.7),
+    frq.lim = c(2.3, 2.7)
+  )
+
+temp.10 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191204_01_05pm.wav"
+    ),
+    name = "T10",
+    t.lim = c(0.1 , 0.4),
+    frq.lim = c(2.1, 2.8)
+  )
+
+temp.11 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191219_22_05pm.wav"
+    ),
+    name = "T11",
+    t.lim = c(0.5 , 0.9),
+    frq.lim = c(1.8, 3)
+  )
+
+temp.12 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191215_04_15pm.wav"
+    ),
+    name = "T12",
+    t.lim = c(0.7 , 1),
+    frq.lim = c(2.1, 2.7)
+  )
+
+
+
+
+
+# temp.15 <-
+#   makeCorTemplate(clip = paste0(             path.start,             "data/Processed/templates/rec_20200114_03_15pm.wav"),
+#                   name = "T15",
+#                   select = "rect")
+
+temp.16 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191202_20_00pm.wav"
+    ),
+    name = "T16",
+    t.lim = c(0.17 , 0.6),
+    frq.lim = c(2.2, 2.8)
+  )
+
+temp.17 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20200102_23_15pm.wav"
+    ),
+    name = "T17",
+    t.lim = c(0.54 , 0.83),
+    frq.lim = c(2, 3)
+  )
+
+
+temp.19 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20200131_03_15pm.wav"
+    ),
+    name = "T19",
+    t.lim = c(0.32, 0.8),
+    frq.lim = c(2, 3)
+  )
+
+
+temp.21 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20200204_04_05pm.wav"
+    ),
+    name = "T21",
+    t.lim = c(0.38 , 0.65),
+    frq.lim = c(1.8, 3)
+  )
+
+temp.22 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191030_01_05pm.wav"
+    ),
+    name = "T22",
+    t.lim = c(0.48 , 0.8),
+    frq.lim = c(2, 3)
+  )
+
+temp.23 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_220191119_20_05pm.wav"
+    ),
+    name = "T23",
+    t.lim = c(0.66 , 1),
+    frq.lim = c(2.2, 3)
+  )
+
+temp.24 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191020_22_15pm.wav"
+    ),
+    name = "T24",
+    t.lim = c(0.1, 0.5),
+    frq.lim = c(2, 3)
+  )
+
+temp.25 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191113_21_05pm.wav"
+    ),
+    name = "T25",
+    t.lim = c(0, 0.5),
+    frq.lim = c(2.2, 2.8)
+  )
+
+temp.26 <-
+  makeCorTemplate(
+    clip = paste0(
+      path.start,
+      "data/Processed/templates/rec_20191220_18_15pm.wav"
+    ),
+    name = "T26",
+    t.lim = c(0.4, 0.8),
+    frq.lim = c(2.1, 2.8)
+  )
+
+# Crear una lista con todos los templates 
+
+lemur.temp <-
+  combineCorTemplates(
+   
+    temp.3,
+    temp.5,
+    temp.8
+    # temp.9,
+    # temp.10,
+    # temp.11,
+    # temp.12,
+    # temp.16,
+    # temp.17,
+    # temp.19,
+    # temp.21,
+    # temp.22,
+    # temp.23,
+    # temp.24,
+    # temp.25,
+    # temp.26
+  )
+
+#plot(lemur.temp)
+```
+
+## Survey
+
+Set the cutoff for the survey
+```{r}
+cutoff <- 0.55
+templateCutoff(lemur.temp)[1:length(lemur.temp)]<-rep(cutoff,length(lemur.temp))
+```
+
+Quantify A. lemur calls
+```{r, message=FALSE, results='hide'}
+# Create a vector with filenames and a table to register the number of calls per recording
+fnames5 <- dir(paste0(path.start, "data/Processed/Five_Min_Recs/"),
+               pattern = "SUKIA")
+detect.counts <- data.frame(new.name = fnames5)
+
+for (i in 1:length(fnames5)) {
+  # Read in survey recording
+  rec.fp <-
+    file.path(paste0(path.start, "data/Processed/Five_Min_Recs/"),
+              paste0(fnames5[i]))
+  
+  # Match to template
+  cscores <- corMatch(rec.fp, lemur.temp)
+  
+  # Detect and quantify calls
+  cdetects <- findPeaks(cscores)
+  detecciones <- getDetections(cdetects)
+  if (nrow(detecciones) > 0) {
+    cantos <- timeAlign(detecciones)
+  } else{
+    cantos <- 0
+  }
+  
+  # Add count to table
+  if (nrow(detecciones) > 0) {
+    detect.counts$count[i] <-
+      nrow(cantos)
+  } else{
+    detect.counts$count[i] <- cantos
+  }
+} 
+i=67
+``` 
+
+
+Read in manually annotated data
+```{r}
+man.dat <-
+  read.csv(
+    file = paste0(path.start, "data/Processed/TrainingDat.csv"),
+    header = T,
+    sep = ","
+  )
+
+# add column with new name
+# dash after year
+man.dat$new.name <- gsub(pattern = "(A_[0-9]{4})" ,
+       replacement = "\\1-",
+       x = man.dat$file.name)
+
+# dash after month
+man.dat$new.name <- gsub(pattern = "(A_[0-9]{4}-[0-9]{2})" ,
+                         replacement = "\\1-",
+                         x = man.dat$new.name)
+
+# Remove previous directory name
+man.dat$new.name <- gsub(pattern = "Data/" ,
+                         replacement = "\\1",
+                         x = man.dat$new.name)
+
+# Name recordings with end time
+for (i in 1:length(man.dat$periodo)) {
+  if ("05" %in% unlist(strsplit(x = as.character(man.dat$periodo[i]), split = ":"))[2]) {
+    man.dat$new.name[i] <- gsub(pattern = "0000.wav" ,
+                                replacement = "0500.wav",
+                                x = man.dat$new.name[i])
+    
+  }
+}
+
+for (i in 1:length(man.dat$periodo)) {
+  if ("15" %in% unlist(strsplit(x = as.character(man.dat$periodo[i]), split = ":"))[2]) {
+    man.dat$new.name[i] <- gsub(pattern = "0000.wav" ,
+                                replacement = "2000.wav",
+                                x = man.dat$new.name[i])
+    
+  }
+}
+
+# Add time zone
+man.dat$new.name <- gsub(pattern = ".wav" ,
+                         replacement = "_UTC-6.wav",
+                         x = man.dat$new.name)
+
+man.dat <- man.dat[, c(1,10,2:9)]
+```
+
+Merge metadata with detection counts
+```{r}
+surv.dat <- merge(x = man.dat, y = detect.counts, by = "new.name")
+```
+
+Plot counts by abundance index
+```{r}
+ggplot(data = surv.dat, aes(
+  x = indice.abun,
+  y = count,
+  colour = as.factor(indice.abun)
+)) +
+  geom_jitter (width = 0.2,
+               size = 3,
+               alpha = 0.7) +
+  labs (x = "Indice abundancia", y = "Numero cantos") +
+  scale_color_manual(values = wes_palette("Darjeeling1")[c(2, 3, 4, 1)], guide = F) +
+  theme_light(base_size = 16)
+```

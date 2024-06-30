@@ -1,0 +1,6 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	14.284505590	14.329695322	2216.867	2437.995	1002.WAV	14.2845	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grabaciones_direccionales_2/1002.WAV
+2	Spectrogram 1	1	76.584897592	76.616530404	2153.034	2517.150	1002.WAV	76.5849	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grabaciones_direccionales_2/1002.WAV
+3	Spectrogram 1	1	172.670040507	172.708385266	2192.771	2517.150	1002.WAV	172.6700	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grabaciones_direccionales_2/1002.WAV
+4	Spectrogram 1	1	249.152460770	249.184414736	2221.636	2532.982	1002.WAV	249.1525	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grabaciones_direccionales_2/1002.WAV
+5	Spectrogram 1	1	292.260516722	292.295666085	2211.082	2464.380	1002.WAV	292.2605	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/Grabaciones_direccionales_2/1002.WAV

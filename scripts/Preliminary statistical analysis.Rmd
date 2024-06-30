@@ -1,0 +1,153 @@
+---
+title: <center><font size="6"><b>Preliminary statistical analysis</b></font></center>
+subtitle: <center><font size="4"><b>Automatic song detection in A. lemur</b></font></center>
+author: <center><font size="4"><a href="http://marceloarayasalas.weebly.com/">Marcelo Araya-Salas, PhD</a> &  Fabiola Chirino</font></center>
+date: <center>`r format(Sys.Date(), "%d-%m-%Y")`</center>
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    code_folding: hide
+    df_print: kable
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+fontsize: 12pt 
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load packages
+```{r packages, message = FALSE, warning = FALSE, eval = TRUE}
+
+## add 'developer/' to packages to be installed from github
+x <- c("devtools", "pbapply", "parallel", "viridis", "ggplot2", "knitr", "kableExtra", "DT", "formatR", "lubridate", "circular", "readxl")
+
+aa <- lapply(x, function(y) {
+  
+  # get pakage name
+  pkg <- strsplit(y, "/")[[1]]
+  pkg <- pkg[length(pkg)]
+  
+  # check if installed, if not then install 
+  if (!pkg %in% installed.packages()[,"Package"])  {
+
+      if (grepl("/", y))  devtools::install_github(y, force = TRUE) else
+    install.packages(y) 
+    }
+
+  # load package
+  try(require(pkg, character.only = T), silent = T)
+})
+
+opts_knit$set(root.dir = "..")
+
+```
+
+```{r functions, eval = TRUE, echo = FALSE}
+
+#warbleR_options(wav.path = "./data/raw/sound_files/10_kHz_5_min_cuts", wl = 300, parallel = parallel::detectCores() - 3, bp = "frange", fast = F, threshold = 15, ovlp = 20)
+
+warbleR_options(wav.path = "~/Dropbox/Fabiola/proyecto_lemur/data/raw/sound_files/10_kHz_5_min_cuts/", wl = 300, parallel = parallel::detectCores() - 3, bp = "frange", fast = F, threshold = 15, ovlp = 20)
+
+# set evaluation false
+opts_chunk$set(fig.width = 10, fig.height = 6, warning = FALSE, message = FALSE, tidy = TRUE)
+
+# ggplot global setting
+theme_set(theme_classic(base_size = 20))
+
+```
+
+# Read data
+```{r, eval = FALSE}
+
+#all_5_min_cuts <- as.data.frame(read_excel("./data/raw/5_min_cut_annotated_06-06-2021.xlsx"))
+
+all_5_min_cuts <- as.data.frame(read_excel("~/Dropbox/Fabiola/proyecto_lemur/data/raw/5_min_cut_annotated_06-06-2021.xlsx"))
+
+all_annotated_sf <- all_5_min_cuts$file[!is.na(all_5_min_cuts$`Presencia/ausencia`)]
+
+all_annotated_sf <- gsub(".wav",  "_5min_cut.wav", all_annotated_sf)
+
+#save for trying stats
+#detection_df <- read.csv("./data/processed/true_positive_detections_on_training_recordings.csv")
+
+detection_df <- read.csv("~/Dropbox/Fabiola/proyecto_lemur/data/processed/true_positive_detections_on_training_recordings.csv")
+
+detection_df <- aggregate(selec ~ sound.files, data = detection_df, length)
+
+names(detection_df)[2] <- "count"
+
+undetected_sf <- setdiff(all_annotated_sf, detection_df$sound.files)
+
+chimu_unrecorded_months <- paste0("LAGCHIMU_20", rep(19:20, each = 3), 0, rep(4:6, 2), "01_170000_dummy_data.wav")
+
+sukia_unrecorded_months <- paste0("SUKIA_20", rep(19:20, each = 5), 0, rep(3:7, 2), "01_170000_dummy_data.wav")
+
+undetected_sf <- c(undetected_sf, chimu_unrecorded_months, sukia_unrecorded_months)
+
+detection_df <- rbind(detection_df, data.frame(sound.files = undetected_sf, count = 0))
+
+detection_df$site <- sapply(detection_df$sound.files, function(x) strsplit(x, "_", fixed = TRUE)[[1]][[1]])
+
+# date
+detection_df$date <- sapply(detection_df$sound.files, function(x) strsplit(x, "_", fixed = TRUE)[[1]][[2]])
+detection_df$year <- as.numeric(sapply(detection_df$date, substr, start = 0, stop = 4))
+detection_df$month <- as.numeric(sapply(detection_df$date, substr, start = 5, stop = 6))
+detection_df$day <- as.numeric(sapply(detection_df$date, substr, start = 7, stop = 8))
+
+# time
+detection_df$time <- sapply(detection_df$sound.files, function(x) strsplit(x, "_", fixed = TRUE)[[1]][[3]])
+detection_df$hour <- as.numeric(sapply(detection_df$time, substr, start = 0, stop = 2))
+
+head(detection_df)
+
+write.csv(detection_df, file.path("~/Dropbox/Fabiola/proyecto_lemur/data/processed/", 
+                                  "number_of_lemur_Calls_2021-11-18.csv"), row.names = F)
+
+detection_df$rate <- detection_df$count / 5
+
+# all time range
+agg <- aggregate(rate ~ month + site, detection_df, mean)
+
+agg$month_f <- factor(agg$month)
+levels(agg$month_f) <- month.abb
+
+ggplot(agg, aes(x = month_f, y = rate)) + 
+  geom_bar(fill = viridis(10)[7], stat = "identity")+
+  facet_wrap( ~ site) + 
+  coord_polar() + theme_classic() + labs(x = "", y = "", title = "Calls per month")
+
+# from 8 pm to 4 am
+sub_agg <- aggregate(rate ~ month + site, detection_df[detection_df$hour %in% c(20:24, 0:4),], mean)
+
+sub_agg$month_f <- factor(sub_agg$month)
+levels(sub_agg$month_f) <- month.abb
+
+ggplot(sub_agg, aes(x = month_f, y = rate)) + 
+  geom_bar(fill = viridis(10)[7], stat = "identity")+
+  facet_wrap( ~ site) + 
+  coord_polar() + theme_classic() + labs(x = "", y = "", title = "Calls per month")
+
+
+```
+
+
+<div class="alert alert-info">
+
+## Next steps
+
+- Try templates from focal recordings
+
+</div>
+
+
+---
+
+<font size="4">Session information</font>
+
+```{r session info, echo=F, eval = TRUE}
+
+sessionInfo()
+
+```

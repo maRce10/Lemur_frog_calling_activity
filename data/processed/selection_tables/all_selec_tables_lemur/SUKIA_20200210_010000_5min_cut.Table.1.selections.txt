@@ -1,0 +1,4 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin Path	File Offset (s)	Begin File
+1	Waveform 1	1	191.506415118	191.611535040	2029.8	2605.4	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200210_010000_5min_cut.wav	191.5064	SUKIA_20200210_010000_5min_cut.wav
+1	Spectrogram 1	1	191.506415118	191.611535040	2029.8	2605.4	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200210_010000_5min_cut.wav	191.5064	SUKIA_20200210_010000_5min_cut.wav
+1	Selection Spectrum 1	1	191.506415118	191.611535040	2029.8	2605.4	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200210_010000_5min_cut.wav	191.5064	SUKIA_20200210_010000_5min_cut.wav

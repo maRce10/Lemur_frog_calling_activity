@@ -1,0 +1,10 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Waveform 1	1	1.284176376	1.299873634	2108.352	2504.825	ZOOM0001_Tr3.WAV	1.2842	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+1	Spectrogram 1	1	1.284176376	1.299873634	2108.352	2504.825	ZOOM0001_Tr3.WAV	1.2842	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+1	Selection Spectrum 1	1	1.284176376	1.299873634	2108.352	2504.825	ZOOM0001_Tr3.WAV	1.2842	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+4	Waveform 1	1	19.048900000	19.073304638	1915.673	2641.924	ZOOM0001_Tr3.WAV	19.0489	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+4	Spectrogram 1	1	19.048900000	19.073304638	1915.673	2641.924	ZOOM0001_Tr3.WAV	19.0489	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+4	Selection Spectrum 1	1	19.048900000	19.073304638	1915.673	2641.924	ZOOM0001_Tr3.WAV	19.0489	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+5	Waveform 1	1	33.992452152	34.010667542	2148.517	2638.052	ZOOM0001_Tr3.WAV	33.9925	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+5	Spectrogram 1	1	33.992452152	34.010667542	2148.517	2638.052	ZOOM0001_Tr3.WAV	33.9925	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV
+5	Selection Spectrum 1	1	33.992452152	34.010667542	2148.517	2638.052	ZOOM0001_Tr3.WAV	33.9925	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0001_Tr3.WAV

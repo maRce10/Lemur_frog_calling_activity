@@ -1,0 +1,983 @@
+---
+title: Statistical analysis using causal inference
+subtitle: Agalychnis lemur
+author: Marcelo Araya-Salas, PhD & Fabiola Chirino
+date: "`r Sys.Date()`"
+toc: true
+toc-depth: 2
+toc-location: left
+number-sections: true
+highlight-style: pygments
+format:
+  html:
+    df-print: kable
+    code-fold: true
+    code-tools: true
+    code-copy: true
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+<!-- skyblue box -->
+
+<div class="alert alert-info">
+
+# Purpose {.unnumbered .unlisted}
+
+- Determine the adjustment sets that allow to infer a causal effect of environmental variables on vocal activity
+- Evaluate effect of environmental factors on vocal activity of *A. lemur*
+
+</div>
+
+# Analysis flowchart {.unnumbered .unlisted}
+```{mermaid, fig.align = "center"}
+
+
+```
+
+&nbsp;
+
+# Load packages {.unnumbered .unlisted}
+```{r}
+#| eval: true
+#| message: false
+#| warning: false
+
+
+# Unload packages
+out <- sapply(paste('package:', names(sessionInfo()$otherPkgs), sep = ""), function(x) try(detach(x, unload = FALSE, character.only = TRUE), silent = T))
+  
+pkgs <- c("devtools", "maRce10/warbleR", "bioacoustics", "pbapply", "Rraven",
+       "parallel", "viridis", "ggplot2", "knitr", "kableExtra", 
+       "maRce10/ohun", "DT", "formatR", "ranger", "cowplot")
+
+# install/ load packages
+sketchy::load_packages(packages = pkgs)
+  
+options("digits" = 6, "digits.secs" = 5, knitr.table.format = "html") 
+
+# set evaluation false
+opts_chunk$set(fig.width = 10, fig.height = 6, warning = FALSE, message = FALSE, tidy = TRUE)
+
+# set working directory as project directory or one directory above,
+opts_knit$set(root.dir = "..")
+
+
+```
+
+# Custom functions {.unnumbered .unlisted}
+```{r functions}
+
+# ggplot global setting
+theme_set(theme_classic(base_size = 20))
+
+```
+
+# Downsample
+```{r, eval = FALSE}
+
+iw <- info_wavs()
+
+table(iw$sample.rate)
+
+# fix_wavs(samp.rate = 10)
+
+```
+
+# Create stratified 5 minute cuts
+```{r create stratified 5 minute cuts, eval = FALSE}
+
+# path with waves
+#wav_path <- "/Volumes/CHIRINO/Grabaciones SM4 2019/"
+
+wav_path <- paste0("/media/m/Expansion/Projects/Ongoing/Agalychnis_lemur",
+                  "/sound_files/10_kHz_5_min_cuts/converted_sound_files/")
+
+# list of wave files
+wavs <- list.files(path = wav_path, pattern = "\\.wav$", ignore.case = TRUE,
+                   recursive = TRUE, full.names = TRUE)
+
+# data frame with waves and metadata
+wav_df <- data.frame(path = dirname(wavs), file =  basename(wavs))
+wav_df$site <- ifelse(grepl("sukia", wav_df$file, ignore.case = TRUE), 
+                      "Sukia", "Chimu") 
+sm_metadata <- seewave::songmeter(wav_df$file)
+
+wav_df <- cbind(wav_df, sm_metadata)
+
+head(wav_df)
+
+str(wav_df)
+
+par(mfrow = c(2, 1))
+hist(wav_df$time[wav_df$site == "Sukia"], breaks = 100, 
+     col = adjustcolor("green", alpha.f = 0.4), main = "Sukia")
+hist(wav_df$time[wav_df$site == "Chimu"], breaks = 100, 
+     col = adjustcolor("blue", alpha.f = 0.4), main = "Chimu")
+
+wav_df <- wav_df[order(wav_df$time), ]
+
+wav_df$day_count <- as.vector(round((wav_df$time - min(wav_df$time)) /
+                                      (3600 * 24), 0) + 1)
+
+wav_df$week <- cut(x = wav_df$day_count, breaks = seq(1, max(wav_df$day_count) +
+                                                        7, by = 7), include.lowest = TRUE)
+
+wav_df <- droplevels(wav_df)
+
+wav_df$period <- 4
+wav_df$period[wav_df$hour %in% 17:19] <- 1
+wav_df$period[wav_df$hour %in% 20:22] <- 2
+wav_df$period[wav_df$hour %in% c(23, 0, 1)] <- 3
+
+# create name combination
+wav_df$site.week.period <- paste(wav_df$site, wav_df$week, wav_df$period, sep = "-")
+
+# remove LAguna chimu
+wav_df <- wav_df[grep("LAguna Chimu", wav_df$path, invert = TRUE), ]
+
+set.seed(1)
+sample_wav_l <- lapply(unique(wav_df$site.week.period), function(x){
+  
+  X <- wav_df[wav_df$site.week.period == x, ]
+  
+  if(nrow(X) > 2)
+    X <- X[sample(1:nrow(X), size = 2), ]
+  
+  return(X)
+    
+}) 
+
+sample_wav_df <- do.call(rbind, sample_wav_l)
+
+write.csv(sample_wav_df, 
+  file.path("/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_lemur/",
+                         "5_min_cut_metadata.csv"), row.names = FALSE)
+
+sample_wav_df$cut.name <- gsub(".wav",  "_5min_cut.wav", sample_wav_df$file)
+
+library(pbapply)
+
+out <- pblapply(1:nrow(sample_wav_df), function(x) {
+
+  # read first 5 mins
+  wv <- try(readWave(file.path(sample_wav_df$path[x], sample_wav_df$file[x]), 
+                     from = 0, to = 300, units = "seconds"), silent = TRUE)
+  
+  if (class(wv) == "Wave")
+  # save cut
+  writeWave(wv, filename = 
+              file.path("/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_lemur/", 
+                        sample_wav_df$cut.name[x])) 
+
+  if (class(wv) == "Wave")
+  return(NULL) else return(x)
+})
+```
+
+## Cheking manual selections
+```{r Cheking manual selections, eval = FALSE}
+
+# list all selection tables
+sl_tbs <- list.files(paste0("~/Dropbox/estudiantes/Fabiola/proyecto_lemur/data", 
+              "/processed/selection_tables/all_selec_tables_lemur/"))
+
+# remove empty selection table
+sl_tbs <- sl_tbs[sl_tbs != "LAGCHIMU_20200919_201500.Table.2.selections.txt"]
+
+# import all selections
+sls <- imp_raven(path = paste0("~/Dropbox/estudiantes/Fabiola/proyecto_lemur/data", 
+              "/processed/selection_tables/all_selec_tables_lemur/"), warbler.format = TRUE, all.data = TRUE, files = sl_tbs)
+
+# relabel selec column
+sls$selec <- 1:nrow(sls)
+
+# check duration
+sls$duration  <- sls$end - sls$start
+unique(sls$sound.files[sls$duration > 1])
+
+# remove temporarily but must be fixed on the original individual selection tables
+sls <- sls[sls$duration < 1, ]
+
+# number of sound files and selection files should be the same
+length(unique(sls$sound.files)) == length(unique(sls$selec.file))
+
+# find files with more than 1 selection
+# tab <- table(sls$sound.files[!duplicated(sls$selec.file)]) 
+# tab[tab > 1]
+# unique(sls$selec.file[sls$sound.files == "LAGCHIMU_20190709_200000_5min_cut.wav"])
+
+# check selections
+cs <- check_sels(X = sls, pb = FALSE)
+table(cs$check.res[cs$check.res != "OK"])
+
+# those with errors were empty selections (single points)
+sls <- sls[cs$check.res == "OK", ]
+
+# check for duplicates (if any sound files was anottated more than once)
+sls <- overlapping_sels(sls, indx.row = TRUE, pb = FALSE)
+sls <- sls[!duplicated(sls$indx.row, incomparables = NA), ]
+
+# should be 4 in "SUKIA_20200207_220000_5min_cut.wav"
+table(sls$sound.files[!is.na(sls$indx.row)])
+
+# export raven multiple sound file selection table
+exp_raven(sls, path = "./data/processed/selection_tables/", sound.file.path = .Options$warbleR$path, file.name = "temporary_doublechecking_all_selections")
+
+
+# fix path for Fabis laptop
+fix_path(path =  "./data/processed/selection_tables/",
+         new.begin.path = paste0("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur",
+                  "/data/raw/sound_files/10_kHz_5_min_cuts/"), 
+         sound.file.col = "Begin File")
+
+
+# create sound file labels
+sf.abbr <- gsub("0000_5min_cut.wav", "", sls$sound.files)
+sf.abbr <- gsub("SUKIA_20", "S", sf.abbr)
+sls$sf.abbr <- gsub("LAGCHIMU_20", "L", sf.abbr)
+
+
+sls_est <- selection_table(sls, path = "/media/m/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files", extended = TRUE)
+
+saveRDS(sls_est, "./data/processed/extended_selection_table_manual_annotations_lemur.RDS")
+
+```
+
+```{r copy files for testing detection methods python, eval = FALSE}
+
+traing_dat <- imp_raven(path = "./data/processed/selection_tables/", files = "temporary_doublechecking_all_selections.txt")
+
+train_files <- unique(traing_dat$`Begin File`)
+
+fc <- file.copy(from = file.path("/media/m/Expansion/Projects/Ongoing/Agalychnis_lemur",
+          "sound_files/10_kHz_5_min_cuts/", train_files), to = file.path("/media/m/Expansion/Projects/Ongoing/Agalychnis_lemur",
+                                                                         "/sound_files/training_sound_files/", train_files))
+
+sls$tags <- "lemur"
+exp_raven(sls[, c("sound.files", "selec", "start", "end", "bottom.freq", "top.freq", "tags")], path = paste0("/media/m/Expansion/Projects/Ongoing/Agalychnis_lemur",
+                                                  "/sound_files/training_sound_files/"), 
+          sound.file.path = .Options$warbleR$path, 
+          file.name = "annotations_raven_format")
+
+fix_path(path = paste0("/media/m/Expansion/Projects/Ongoing/Agalychnis_lemur",
+                                                  "/sound_files/training_sound_files/"), 
+         new.begin.path = "", sound.file.col = "Begin File")
+fix_path(path = paste0("/media/m/Expansion/Projects/Ongoing/Agalychnis_lemur",
+                                                  "/sound_files/training_sound_files/"),
+         new.begin.path = "", sound.file.col = "Begin Path")
+```
+
+
+## Create catalogs
+```{r Create catalogs, eval = FALSE}
+
+sls_est <- readRDS("./data/processed/extended_selection_table_manual_annotations_lemur.RDS")
+
+# create catalogs
+catalog(X = sls_est, flim = c(1, 3.5), nrow = 12, ncol = 15, ovlp = 70, height = 15, width = 23, same.time.scale = TRUE, mar = 0.005, wl = 512, gr = FALSE,
+        spec.mar = 0.4, lab.mar = 0.8, rm.axes = TRUE, by.row = TRUE, 
+        box = TRUE, labels = c("sf.abbr", "selec"), fast.spec = TRUE, 
+        pal = viridis, parallel = 10)
+
+# move images to figures folder
+move_imgs(from = .Options$warbleR$path, to = "./figures", overwrite = TRUE)
+
+
+# catalog for paper
+catalog(X = sls_est[1:180,], flim = c(1, 3.5), nrow = 12, ncol = 15, ovlp = 90, 
+        height = 15, width = 23, same.time.scale = TRUE, mar = 0.1, wl = 512,
+        gr = FALSE, spec.mar = 0, lab.mar = 0.0001, rm.axes = TRUE, 
+        by.row = TRUE, box = FALSE, fast.spec = FALSE, pal = viridis, 
+        parallel = 1, img.suffix = "no_margins", collevels = seq(-115, 0, 5))
+
+# move images to figures folder
+move_imgs(from = .Options$warbleR$path, to = "./figures", overwrite = TRUE)
+
+
+```
+
+## Measure frequency range parameters
+
+To figure out variation in signal structure aiming to define templates
+```{r Measure frequency range parameters, eval = FALSE, results='asis'}
+# measure spectrographic parameters
+spectral_parameters <- spectro_analysis(sls, bp = "frange", fast = TRUE, 
+                                        ovlp = 70, pb = FALSE)
+
+saveRDS(spectral_parameters, "./data/processed/acoustic_parameters_and_selections.RDS")
+
+```
+
+
+```{r plot frequency range parameters, eval = TRUE, results='asis'}
+
+spectral_parameters <- readRDS("./data/processed/acoustic_parameters_and_selections.RDS")
+
+sls <- imp_raven(path = "./data/processed/selection_tables/", files = "temporary_doublechecking_all_selections.txt", pb = FALSE, warbler.format = TRUE)
+
+# measure signal_2_noise ratio
+# sls <- signal_2_noise(sls, mar = 0.1, before = TRUE, pb = FALSE, bp = "frange")
+pca <- prcomp(spectral_parameters[, 2:27], scale. = TRUE)
+
+
+# extrac SNR and peak freq
+sls$meanpeakf <- spectral_parameters$meanpeakf
+sls$duration <- spectral_parameters$duration
+sls$sp.ent <- spectral_parameters$sp.ent
+sls$PC1 <- pca$x[, 1]
+
+
+# stck_parameters$PC1
+stck_parameters <- stack(sls[, c("duration", "meanpeakf", "sp.ent", "PC1")])
+
+ggplot(stck_parameters, aes(x = values)) +
+  geom_histogram(fill = viridis(10, alpha = 0.9)[2]) +
+  facet_wrap(~ ind, scales = "free")
+
+spectral_parameters <- spectral_parameters[!is.infinite(spectral_parameters$SNR), ]
+
+freq_variation <- sapply(c("duration", "meanpeakf", "sp.ent", "PC1"), function(x) 
+  data.frame(mean = mean(sls[, x]), min = min(sls[, x]), max = max(sls[, x]), 
+             sd = sd(sls[, x]), CI.2.5 = quantile(sls[, x], 0.025), 
+             CI.97.5 = quantile(sls[, x], 0.975)))
+
+freq_variation <- do.call(rbind, lapply(data.frame(freq_variation), function(x) round(unlist(x), 3)))
+
+# print table as kable  
+kb <-kable(freq_variation, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+## Template-based detection
+```{r  template creation, eval = FALSE}
+
+
+# find template close to mean peak freq
+mean_peak_indx <- which.min(abs(sls$meanpeakf - freq_variation[rownames(freq_variation) == "meanpeakf", 1]))
+
+# find template close to mean duration
+mean_duration_indx <- which.min(abs(sls$duration - freq_variation[rownames(freq_variation) == "duration", 1]))
+
+# find template close to mean PC1
+mean_pc1_indx <- which.min(abs(sls$PC1 - freq_variation[rownames(freq_variation) == "PC1", 1]))
+
+# put both templates together
+templates <- sls[c(mean_peak_indx, mean_duration_indx, mean_pc1_indx), ]
+
+# label templates
+templates$template.type <- c("mean.peak.freq", "mean.duration", "mean.PC1")
+
+#  create ext. selection table
+templates_est <- selection_table(templates, extended = TRUE, 
+                                 confirm.extended = FALSE, fix.selec = TRUE)
+
+templates_est <- rename_est_waves(templates_est, new.sound.files = templates$template.type)
+
+catalog(templates_est, nrow = 2, ncol = 2, ovlp = 70, height = 10, width = 14,
+        same.time.scale = TRUE, mar = 1, wl = 512, gr = FALSE, spec.mar = 0.6,
+        lab.mar = 1, rm.axes = FALSE, by.row = TRUE, box = TRUE, 
+        labels = "sound.files", fast.spec = FALSE, pal = viridis, 
+        flim = c(1, 3.5), img.suffix = "templates", collevels = seq(-100, 0, 5))
+
+te2 <- te <- templates_est[rep(2:4, 2), ]
+# te2 <- rename_est_waves(te2, new.sound.files = letters[1:3])
+te2$selec <- 2
+te3 <- rbind(te, te2)
+
+catalog(templates_est, nrow = 2, ncol = 3, ovlp = 90, height = 10, width = 14, same.time.scale = TRUE, mar = 1, wl = 512, gr = FALSE, spec.mar = 0.6, 
+        lab.mar = 2, rm.axes = FALSE, by.row = TRUE, box = FALSE, 
+        labels = "sound.files", fast.spec = FALSE, pal = viridis, 
+        flim = c(1, 3.5), img.suffix = "templates", collevels = seq(-100, 0, 5))
+
+# # move images to figures folder
+move_imgs(from = .Options$warbleR$path, to = "./figures", overwrite = TRUE)
+
+# save est
+saveRDS(templates_est, "./data/processed/mean_acoustic_parameter_templates_est.RDS")
+
+```
+
+## Detection perfomance
+
+Using 4 templates:
+
+  - mean_peakf: the call with the peak frequency closest to the mean of the population 
+
+```{r optimization results get correlations, eval = FALSE}
+templates_est <- 
+  readRDS("./data/processed/mean_acoustic_parameter_templates_est.RDS")
+
+paral <- 15
+
+# use mean peak freq sels as template, fourier spectrograms
+corr_templ <- template_correlator(templates = templates_est, 
+                                  files = unique(sls$sound.files), 
+                                  path = .Options$warbleR$path, 
+                                  parallel = paral, hop.size = 11.6, ovlp = 70)
+  
+saveRDS(corr_templ, "./data/processed/template_correlations_4_templates.RDS")
+```
+
+
+```{r optimization run, eval = FALSE}
+
+corr_templ <- readRDS("./data/processed/template_correlations_4_templates.RDS")
+
+optimize_fourier_detec <- optimize_template_detector(reference = sls, template.correlations = corr_templ, threshold = seq(0.05, 0.5, 0.01), 
+  cores = 10, by.sound.file = TRUE, pb = TRUE)
+
+# optimize_fourier_detec$recall <- optimize_fourier_detec$sensitivity
+# optimize_fourier_detec$precision <- optimize_fourier_detec$specificity
+# optimize_fourier_detec$sensitivity <- optimize_fourier_detec$specificity <- NULL
+# optimize_fourier_detec$f1.score <- optimize_fourier_detec$recall * optimize_fourier_detec$precision
+
+saveRDS(optimize_fourier_detec, "./data/processed/optimization_results_4_templates.RDS")
+
+```
+
+```{r read detection optimization results, eval = FALSE, results='asis'}
+optimize_fourier_detec <- readRDS("./data/processed/optimization_results_4_templates.RDS")
+
+optimize_fourier_detec$templates <- gsub("-1", "",optimize_fourier_detec$templates)
+
+# optimize_fourier_detec$overlap <- optimize_fourier_detec$proportional.overlap.true.positives
+
+sd_tab <- summarize_diagnostic(optimize_fourier_detec)
+
+saveRDS(sd_tab, "./data/processed/summary_optimization_results_4_templates.RDS")
+```
+
+```{r read detection optimization results 2, eval = TRUE, results='asis'}
+sd_tab <- readRDS("./data/processed/optimization_results_4_templates.RDS")
+
+sd_tab <- sd_tab[grep("SNR", sd_tab$templates, invert = TRUE),]
+
+# sd_tab$f1.score <- sd_tab$rec * sd_tab$specificity
+
+agg_sd <- aggregate(cbind(recall, precision, f.score) ~ threshold + 
+                      templates, data = sd_tab, mean)
+
+ggplot(agg_sd, aes(x = threshold, y = recall, group = templates, 
+                   color = templates)) +
+  geom_line() +
+  geom_point() +
+  scale_color_viridis_d(end = 1) +
+  theme_classic() 
+
+ggplot(agg_sd, aes(x = threshold, y = precision, group = templates, 
+                   color = templates)) +
+  geom_line() +
+  geom_point() +
+  scale_color_viridis_d(end = 0.8) +
+  theme_classic() 
+
+ggplot(agg_sd, aes(y = precision, x = recall, group = templates, 
+                   color = templates)) +
+  geom_line() +
+  geom_point() +
+  scale_color_viridis_d(end = 1) +
+  theme_classic() 
+
+ggplot(agg_sd, aes(x = threshold, y = f.score, group = templates, 
+                   color = templates)) +
+  geom_line() +
+  geom_point() +
+  scale_color_viridis_d(end = 0.8) +
+  theme_classic() 
+
+
+stck_agg_sd <- cbind(agg_sd[, 1:2], stack(agg_sd[, 3:5]))
+
+stck_agg_sd$ind <- factor(stck_agg_sd$ind, labels = c("Recall", "Precision", 
+                                                      "F1 score"))
+
+# ggf1 <-
+  ggplot(stck_agg_sd, aes(x = threshold, y = values, group = templates, 
+                          color = templates)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Correlation threshold", color = "Template", y = "") +
+  facet_wrap(~ind, nrow = 1, scales = "free_y") + 
+  scale_color_viridis_d(end = 0.8, 
+                        labels = c("Mean duration", "Mean PC1", 
+                                   "Mean peak frequency"), alpha = 0.5) +
+  theme_classic() 
+
+# ggsave("./data/processed/multipanel_perfomance_indices.jpeg", width = 9, height = 4, dpi = 300)
+  
+# print dynamic table
+oa_DT <- datatable(sd_tab, editable = list(
+  target = 'row'
+), rownames = FALSE, style = "bootstrap",  filter = 'top', 
+options = list(
+  pageLength = 100, autoWidth = TRUE, dom = 'ft'
+), autoHideNavigation = TRUE, escape = FALSE)
+
+formatRound(table = oa_DT, columns = sapply(sd_tab, is.numeric), 3)
+```
+
+
+```{r figure with recall and precision, eval = TRUE, results='asis'}
+
+# figure with recall and precision
+sub_stck_agg_sd <- stck_agg_sd[stck_agg_sd$ind != "F1 score", ]
+
+sub_stck_agg_sd$ind <- paste(sub_stck_agg_sd$ind, "(%)")
+
+sub_stck_agg_sd$ind <- factor(sub_stck_agg_sd$ind, levels = c("Recall (%)", "Precision (%)"))
+
+pc1_0.43thr_dat <- sub_stck_agg_sd[sub_stck_agg_sd$threshold == 0.43 &
+                             sub_stck_agg_sd$templates == "mean.PC1-1", ]
+
+gg_recall <-
+  ggplot(
+    sub_stck_agg_sd,
+    aes(
+      x = threshold,
+      y = values * 100,
+      group = templates,
+      color = templates,
+      shape = templates
+    )
+  ) + geom_hline(
+    data = pc1_0.43thr_dat,
+    aes(yintercept = values * 100),
+    lty = 2,
+    color = "gray"
+  ) + 
+  geom_vline(xintercept = 0.43,
+             lty = 2,
+             color = "gray") +
+  geom_line() +
+  geom_point(size = 4) +
+  labs(
+    x = "Correlation threshold",
+    color = "",
+    y = "",
+    shape = ""
+  ) +
+  facet_wrap( ~ ind, nrow = 1, scales = "free_y") +
+  scale_shape_discrete(labels = c("Mean duration", "Mean PC1",
+                                  "Mean peak frequency")) +
+  scale_color_viridis_d(
+    end = 0.8,
+    labels = c("Mean duration", "Mean PC1",
+               "Mean peak frequency"),
+    alpha = 0.5
+  ) +
+  theme_classic(base_size = 25) + theme(legend.position = c(.76, .75),
+                                        legend.background = element_rect(fill = NA)) 
+
+```
+
+
+# Template fourier mean.PC1 threshold 0.43
+
+Choose 'fourier mean.PC1' template with a threshold of 0.43 due to a good sensitivity and relatively low number of false positives
+
+```{r, eval = FALSE}
+
+templates_est <- readRDS("./data/processed/mean_acoustic_parameter_templates_est.RDS")
+
+corr_templ <- template_correlator(templates = templates_est[templates_est$sound.files == "mean.PC1", , drop = FALSE], 
+                                  files = unique(sls$sound.files), 
+                                  path = .Options$warbleR$path, parallel = 10,
+                                  hop.size = 11.6, ovlp = 70)
+
+detec <- template_detector(template.correlations = corr_templ,
+                           threshold = 0.43, parallel = 10, pb =  TRUE)
+
+diagnostic <- diagnose_detection(reference = sls, detection = detec, parallel = 10,  
+                                 by.sound.file = TRUE)
+
+summarize_diagnostic(diagnostic)
+
+saveRDS(diagnostic,
+        "./data/processed/diagnostic_mean_pc1_0.43_threshold_diagnostic.RDS")
+
+lab_detec <- label_detection(reference = sls, detection = detec, parallel = 10)
+
+saveRDS(lab_detec, 
+        "./data/processed/label_detection_mean_pc1_0.43_threshold.RDS")
+
+```
+
+```{r filter detections, eval = FALSE}
+
+lab_detec <- 
+  readRDS("./data/processed/label_detection_mean_pc1_0.43_threshold.RDS")
+
+filter_lab_detec <- filter_detection(detection = lab_detec, by = "scores")
+
+saveRDS(filter_lab_detec,
+        "./data/processed/filtered_detection_mean_pc1_0.43_threshold.RDS")
+
+diagnose_model <- diagnose_detection(reference = sls, filter_lab_detec, 
+                                     parallel = 10)
+
+
+diagnose_model$f1.score <- 
+  diagnose_model$specificity * diagnose_model$sensitivity
+
+saveRDS(diagnose_model, "./data/processed/diagnostics_detection_mean_pc1_0.43_threshold.RDS")
+
+```
+
+```{r diagnostic, eval = TRUE}
+
+diag <- 
+  readRDS("./data/processed/diagnostics_detection_mean_pc1_0.43_threshold.RDS")
+
+# print dynamic table
+oa_DT <- datatable(diag, editable = list(
+  target = 'row'
+), rownames = FALSE, style = "bootstrap",  filter = 'top', 
+options = list(
+  pageLength = 100, autoWidth = TRUE, dom = 'ft'
+), autoHideNavigation = TRUE, escape = FALSE)
+
+formatRound(table = oa_DT, columns = sapply(diag, is.numeric), 3)
+
+```
+
+## Random forest results
+```{r measure acoustic parameters and run random forest, eval = FALSE}
+
+filter_lab_detec <- readRDS("./data/processed/filtered_detection_mean_pc1_0.43_threshold.RDS")
+
+# measure spectrographic parameters
+spectral_parameters <- spectro_analysis(filter_lab_detec, bp = c(1, 3.5), 
+                                        fast = TRUE, ovlp = 70, parallel = 10)
+
+# mfccs <- mfcc_stats(X = lab_detec, bp = c(1, 3.5), ovlp = 70, parallel = 10)
+# 
+# na_rows <- unique(unlist(sapply(mfccs, function(x) which(is.na(x)))))
+# 
+# lab_detec <- lab_detec[-na_rows, ]
+# spectral_parameters <- spectral_parameters[-na_rows, ]
+# mfccs <- mfccs[-na_rows, ]
+
+spectral_parameters$class <- filter_lab_detec$detection.class
+
+# spectral_parameters <- data.frame(spectral_parameters, mfccs[, !names(spectral_parameters) %in% c("sound.files", "selec")])
+
+spectral_parameters$class[spectral_parameters$class != "false.positive"] <-
+  "true.positive"
+
+# make it a factor for ranger to work 
+spectral_parameters$class <- as.factor(spectral_parameters$class)
+  
+# run RF model spectral and cepstral parameters
+  rfm <-
+    ranger(
+      class ~ .,
+      data = spectral_parameters[, !names(spectral_parameters) %in% c("sound.files", "selec")],
+      num.trees = 10000,
+      importance = "impurity",
+      seed = 10
+    )
+  
+saveRDS(list(rfm = rfm, spectral_parameters = spectral_parameters,
+             filter_lab_detec = filter_lab_detec),
+paste0("./data/processed/data_and_model_random_forest_0.43_",
+       "threshold_only_spectro_parameters.RDS"))  
+
+```
+
+```{r random forest results, eval = TRUE}
+
+# attach(readRDS("./data/processed/data_and_model_random_forest_0.43_threshold.RDS"))
+
+
+attach(readRDS(paste0("./data/processed/data_and_model_random_forest_0.43_",
+                      
+       "threshold_only_spectro_parameters.RDS")))
+
+rfm
+
+```
+
+Diagnostic after random forest classification:
+```{r random forest diagnosticsi, eval = TRUE}
+
+filter_lab_detec$pred.class <- rfm$predictions
+
+positive_detec <- filter_lab_detec[filter_lab_detec$pred.class == 
+                                     "true.positive", ]
+
+
+
+#save for trying stats
+# write.csv(positive_detec, "./data/processed/true_positive_detections_on_training_recordings.csv", row.names = FALSE)
+
+# exp_raven(positive_detec, file.name = "./data/processed/true_positive_detections_on_training_recordings", sound.file.path = .Options$warbleR$path)
+
+# fix path for Fabis laptop
+#fix_path(path =  "./data/processed/",new.begin.path = "/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/raw/sound_files/10_kHz_5_min_cuts/", sound.file.col = "Begin File")
+
+temp_detec <- positive_detec
+temp_detec$detection.class <- "true.positive"
+temp_detec$selec <- 1:nrow(temp_detec)
+
+
+
+diag <- diagnose_detection(reference = sls, detection = temp_detec, pb = FALSE)
+
+# print dynamic table
+oa_DT <- datatable(diag, editable = list(
+  target = 'row'
+), rownames = FALSE, style = "bootstrap",  filter = 'top', 
+options = list(
+  pageLength = 100, autoWidth = TRUE, dom = 'ft'
+), autoHideNavigation = TRUE, escape = FALSE)
+
+formatRound(table = oa_DT, columns = sapply(diag, is.numeric), 3)
+
+```
+
+ Black line = 1:1
+ gray line = model slope
+
+```{r random forest results plots, eval = TRUE}
+
+obs_count <- tapply(sls$sound.files, sls$sound.files, length)
+pred_count <- tapply(positive_detec$sound.files, positive_detec$sound.files, length)
+
+int_columns <- intersect(names(obs_count), names(pred_count))
+obs_count <- obs_count[names(obs_count) %in% int_columns]
+pred_count <- pred_count[names(pred_count) %in% int_columns]
+pred_count <- pred_count[order(names(pred_count))]
+obs_count <- obs_count[order(names(obs_count))]
+
+df <- data.frame(sound.files = names(obs_count), observed = obs_count, predicted = pred_count)
+
+ggplot(df, aes(x = observed, y = predicted)) +
+  geom_point(color = viridis(10, alpha = 0.4)[2], size = 3) +
+  geom_abline(slope = 1, intercept = 0) +
+  annotate("text", x = 50, y = 150, 
+           label = paste("r =", round(cor(obs_count, pred_count), 3)), size = 8) +
+  geom_smooth(method = "lm", se = FALSE, col = "gray") +
+  theme_classic(base_size = 20)
+
+(lm(pred_count ~ obs_count))
+
+```
+
+Removing 1 outlier
+```{r random forest results plots 2, eval = FALSE}
+
+gg_scatter <- ggplot(df[df$observed < 100, ], aes(x = observed, y = predicted)) +
+  geom_point(color = viridis(10, alpha = 0.4)[5], size = 5) +
+  geom_abline(slope = 1, intercept = 0) +
+  geom_smooth(method = "lm", se = FALSE, col = "gray") + labs(x = "Observed number of calls", y = "Predicted\nnumber of calls") +
+  theme_classic(base_size = 30)
+
+gg_scatter
+(lm(pred_count[obs_count < 100] ~ obs_count[obs_count < 100]))
+
+```
+
+```{r random forest results plots 2 for presentation, eval = TRUE}
+
+ggplot(df[df$observed < 100, ], aes(x = observed, y = predicted)) +
+  geom_point(color = alpha("#F2622E", 0.6), size = 3) +
+  geom_abline(slope = 1, intercept = 0) +
+  annotate("text", x = 35, y = 80, 
+           label = paste("r =", round(cor(obs_count[obs_count < 100],
+                        pred_count[obs_count < 100]), 3)), size = 8) + 
+  geom_smooth(method = "lm", se = FALSE, col = "gray") +
+  theme_classic(base_size = 20) + labs(x = "Cantos observados", y = "Cantos detectados")
+
+
+(lm(pred_count[obs_count < 100] ~ obs_count[obs_count < 100]))
+
+
+
+```
+
+# Graphs for presentations
+
+```{r}
+library(ggplot2)
+library(cowplot)
+
+n <- 90000
+sd <- 0.3
+set.seed(1)
+x <- rnorm(n, mean = 0.1, sd = sd)
+set.seed(2)
+y <- rnorm(n, mean = 0.9, sd = sd)
+umbral <- 0.5
+df <-
+  data.frame(tipo = rep(c("Otros\nsonidos", "Cantos\nde lemur"), each = n), vals = c(x, y))
+
+df$tipo <-
+  factor(df$tipo, levels = c("Otros\nsonidos", "Cantos\nde lemur"))
+
+df$vals <-
+  (df$vals + abs(min(df$vals))) / max(df$vals + abs(min(df$vals)))
+
+fill_values <- c("#AFBF35", "#F2622E")
+fill_values <- adjustcolor(fill_values, alpha.f = 0.6)
+
+gg1 <-
+  ggplot(df, aes(x = vals, fill = tipo)) +
+  geom_density() +
+  scale_fill_manual(values = fill_values) +
+  labs(x = "Umbral de correlación", y = "", fill = "") +
+  geom_vline(xintercept = umbral, lty = 2) +
+  theme_classic(base_size = 25) +
+  theme(legend.position = c(.9, .9))
+
+agg <- aggregate(vals ~ tipo, df[df$vals > umbral,], length)
+agg$tipo <-
+  factor(agg$tipo, levels = c("Otros\nsonidos", "Cantos\nde lemur"))
+
+gg2 <- ggplot(agg, aes(x = tipo, y = vals, fill = tipo)) +
+  geom_col(col = "black") +
+  scale_fill_manual(values = fill_values, guide = 'none') +
+  theme_classic(base_size = 25) +
+  labs(x = "", y = "Proporción") + ylim(c(0, n)) +
+  theme(axis.text.y = element_blank())
+
+cowplot::plot_grid(gg1, gg2, nrow = 1, rel_widths = c(1.7, 1))
+
+# cowplot::ggsave2(plot = ggcp, filename = "./output/threshold_0.3.tiff", width = 15, height = 5)
+```
+
+# Graphs for paper
+
+```{r, eval=FALSE}
+
+est <- readRDS( "./data/processed/extended_selection_table_focal_recordings_lemur.RDS")
+
+est <- signal_2_noise(est, mar = 0.05)
+
+
+summary(est$SNR)
+
+maxsnr <- est[est$SNR > 17, ]
+
+# dev.off()
+# par(mfrow = c(4, 2))
+# 
+# for(i in seq_len(nrow(maxsnr)))
+# warbleR:::spectro_wrblr_int(wave = read_sound_file(maxsnr, index = i, from = 0.05, to = Inf), wl = 500, grid = F, collevels = seq(-145, 5, 1), ovlp = 99, palette = viridis, scale = FALSE, flab = "Frecuency (kHz)", tlab = "TIme (s)", main = i, flim = c(0.6, 4.5), zp = 1000)
+
+lemur_call <- read_sound_file(maxsnr, index = 2, from = 0.07, to = 0.17)
+# for (i in seq(50, 1000, length.out = 20)){
+# 
+#   Sys.sleep(1)
+#   warbleR:::spectro_wrblr_int(wave = lemur_call, wl = i, grid = F, collevels = seq(-125, 0 ,1), ovlp = 90, palette = viridis, scale = FALSE, flab = "Frecuencia (kHz)", tlab = "Tiempo (s)",flim = c(0.6, 4.5), main = i)
+# }
+# 
+
+png(filename = "./output/spectro_300dpi.png", res = 300,  width = 11.4, height = 6, units = "in")
+
+par(mar = c(0, 0, 0, 0))
+warbleR:::spectro_wrblr_int(wave = lemur_call, wl = 500, grid = F, collevels = seq(-120, 3, 0.5), ovlp = 99, palette = viridis, scale = FALSE, flab = "Frecuency (kHz)", tlab = "Time (s)",flim = c(0.6, 4.5), zp = 1000)
+
+dev.off()
+# 
+# cowplot::plot_grid(gg_recall, gg_scatter, nrow = 2, rel_widths = c(1.7, 1))
+# 
+
+# other types of plots not generated with ggplot
+# p6 <- ~{
+#   par(mar = c(1,1,1,1))
+# warbleR:::spectro_wrblr_int(wave = lemur_call, wl = 500, grid = F, collevels = seq(-120, 3, 0.5), ovlp = 99, palette = viridis, scale = FALSE, flab = "Frecuency (kHz)", tlab = "Time (s)",flim = c(0.6, 4.5), zp = 1000)
+# }
+# 
+# pg1 <- cowplot::plot_grid(gg_scatter, p6, nrow = 1, rel_widths = c(1, 0.6))
+
+# prediction removing outlier
+prd_100 <- (lm(pred_count[obs_count < 100] ~ obs_count[obs_count < 100]))
+
+gg_scatter <-
+  ggplot(df, aes(x = observed, y = predicted)) +
+  geom_point(color = viridis(10, alpha = 0.4)[5], size = 4) +
+  geom_abline(slope = 1, intercept = 0) +
+  geom_abline(slope = prd_100$coefficients[2], intercept = prd_100$coefficients[1], lty = 3, color = "gray", lwd = 2) +
+  geom_smooth(method = "lm", se = FALSE, col = "gray") + labs(x = "Observed number of calls", y = "Detected\nnumber of calls") +
+  theme_classic(base_size = 30)
+
+gg_sp <- ggspectro(wave = lemur_call, wl = 500, grid = F, collevels = seq(-120, 3, 0.5), ovlp = 9, palette = viridis, scale = FALSE, flab = "Frecuency (kHz)", tlab = "Time (s)",flim = c(0.6, 4.5), zp = 1000)
+
+
+
+
+bs <- 15
+pg1 <-
+  cowplot::plot_grid(gg_scatter + theme_classic(base_size = bs),
+                     gg_sp + theme_classic(base_size = bs),
+                     nrow = 1)
+
+pg2 <- cowplot::plot_grid(
+  gg_recall + theme_classic(base_size = bs) + labs(shape = "Templates:", color = "Templates:") + theme(
+    legend.position = c(.7, .65),
+    legend.background = element_rect(fill = NA)
+  ) ,
+  pg1,
+  nrow = 2)
+
+pg2 <- pg2 + draw_plot_label(c("A", "B", "C", "D"), x = c(0.025, 0.51, 0.025, 0.51), y = c(1, 1, 0.52, 0.52))
+
+pg3 <- ggdraw(pg2) + 
+  draw_image("./output/spectro_300dpi.png", x = 0.271, y = 0.1024, height = 0.38, width = 1, hjust = 0, vjust = 0)
+
+pg3
+
+cowplot::ggsave2(plot = pg3, filename = "./output/fig_recall_precision_scatter_spectro_300dpi.png", dpi = 300, width = 10, height = 6)
+# 
+
+
+```
+
+---
+
+
+<!-- light green box -->
+
+<div class="alert alert-success">
+
+&nbsp; 
+
+# Takeaways
+
+- 
+
+</div>
+
+&nbsp;
+
+<div class="alert alert-info">
+
+# Sum up results
+
+-  
+
+</div>
+
+
+# Next steps
+
+- Run Moon with previous rain 24h with thinning so all models can be merged
+
+&nbsp; 
+
+---
+
+# Session information {.unnumbered .unlisted}
+
+```{r session info, echo=F, eval = TRUE}
+
+sessionInfo()
+
+```

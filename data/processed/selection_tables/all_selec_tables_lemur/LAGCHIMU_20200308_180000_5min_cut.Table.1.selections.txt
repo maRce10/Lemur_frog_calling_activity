@@ -1,0 +1,3 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	3.507000000	3.544826677	2296.500	2527.300	LAGCHIMU_20200308_180000_5min_cut.wav	3.5070	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200308_180000_5min_cut.wav
+3	Spectrogram 1	1	140.565256490	140.611840334	2204.509	2510.775	LAGCHIMU_20200308_180000_5min_cut.wav	140.5653	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200308_180000_5min_cut.wav

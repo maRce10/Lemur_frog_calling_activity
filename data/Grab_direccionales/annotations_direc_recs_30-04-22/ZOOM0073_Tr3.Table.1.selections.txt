@@ -1,0 +1,5 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	1.556494269	1.594354941	2170.436	2450.969	ZOOM0073_Tr3.WAV	1.5565	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/Grab_direccionales/sukia_grab_dir_24-01-22/ZOOM0073/ZOOM0073_Tr3.WAV
+2	Spectrogram 1	1	32.799960860	32.839924902	2273.790	2465.734	ZOOM0073_Tr3.WAV	32.8000	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/Grab_direccionales/sukia_grab_dir_24-01-22/ZOOM0073/ZOOM0073_Tr3.WAV
+3	Spectrogram 1	1	79.277029014	79.310682944	2155.671	2495.263	ZOOM0073_Tr3.WAV	79.2770	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/Grab_direccionales/sukia_grab_dir_24-01-22/ZOOM0073/ZOOM0073_Tr3.WAV
+4	Spectrogram 1	1	186.463747419	186.499504719	2318.085	2495.263	ZOOM0073_Tr3.WAV	186.4637	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/Grab_direccionales/sukia_grab_dir_24-01-22/ZOOM0073/ZOOM0073_Tr3.WAV

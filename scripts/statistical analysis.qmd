@@ -1,0 +1,2004 @@
+---
+title: Statistical analysis using causal inference
+subtitle: Agalychnis lemur
+author: Marcelo Araya-Salas, PhD & Fabiola Chirino
+date: "`r Sys.Date()`"
+toc: true
+toc-depth: 2
+toc-location: left
+number-sections: true
+highlight-style: pygments
+format:
+  html:
+    df-print: kable
+    code-fold: true
+    code-tools: true
+    code-copy: true
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+<!-- skyblue box -->
+
+<div class="alert alert-info">
+
+# Purpose {.unnumbered .unlisted}
+
+- Determine the adjustment sets that allow to infer a causal effect of environmental variables on vocal activity
+- Evaluate effect of environmental factors on vocal activity of *A. lemur*
+
+</div>
+
+# Analysis flowchart {.unnumbered .unlisted}
+```{mermaid, fig.align = "center"}
+
+flowchart
+  A[Define DAG] --> B(24 hours previous rain) 
+  A --> C(48 hours previous rain)
+  B --> D(Define adjustment sets for each predictor)
+  C --> D
+  D --> E(Run all models satisfying\nthe back door criterion)
+  E --> F(Average posterior probabilities) 
+  F --> G(Combine models in a single graph) 
+
+style A fill:#44015466
+style B fill:#3E4A894D
+style C fill:#3E4A894D
+style D fill:#26828E4D
+style E fill:#6DCD594D
+style F fill:#FDE7254D
+style G fill:#31688E4D
+
+```
+
+&nbsp;
+
+# Load packages {.unnumbered .unlisted}
+```{r}
+#| eval: true
+#| message: false
+#| warning: false
+
+
+# Unload packages
+out <- sapply(paste('package:', names(sessionInfo()$otherPkgs), sep = ""), function(x) try(detach(x, unload = FALSE, character.only = TRUE), silent = T))
+  
+pkgs <-
+  c(
+    "remotes",
+    "viridis",
+    "brms",
+    "cowplot",
+    "posterior",
+    "readxl",
+    "HDInterval",
+    "kableExtra",
+    "knitr",
+    "ggdist",
+    "ggplot2",
+    "lunar",
+    "cowplot",
+    "maRce10/brmsish",
+    "warbleR",
+    "ohun",
+    "dagitty",
+    "ggdag",
+    "tidybayes",
+    "pbapply"
+  )
+
+
+# install/ load packages
+sketchy::load_packages(packages = pkgs)
+  
+options("digits" = 6, "digits.secs" = 5, knitr.table.format = "html") 
+
+# set evaluation false
+opts_chunk$set(fig.width = 10, fig.height = 6, warning = FALSE, message = FALSE, tidy = TRUE)
+
+# set working directory as project directory or one directory above,
+opts_knit$set(root.dir = "..")
+
+source("~/Dropbox/R_package_testing/brmsish/R/extended_summary.R")
+source("~/Dropbox/R_package_testing/brmsish/R/helpers.R")
+source("~/Dropbox/R_package_testing/brmsish/R/check_rds_fits.R")
+source("~/Dropbox/R_package_testing/brmsish/R/draw_extended_summary.R")
+```
+
+# Custom functions {.unnumbered .unlisted}
+```{r functions}
+#| eval: true
+
+print_data_frame <- function(x){
+    # print table as kable  
+  kb <-kable(x, row.names = TRUE, digits = 3) 
+    
+  kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+    
+  print(kb)
+}
+
+adjustment_set_formulas <-
+  function(dag,
+           exposure,
+           required_variable,
+           outcome,
+           effect = "total",
+           type = "minimal",
+           formula_parts = c(outcome),
+           latent  = NULL,
+           remove = NULL,
+           plot = TRUE, 
+           ...) {
+    if (plot)
+      gg <- ggdag_adjustment_set(
+        .tdy_dag = tidy_dagitty(dag),
+        exposure = exposure,
+        outcome = outcome,
+        ...
+      ) + theme_dag()
+    
+    temp_set <-
+      adjustmentSets(
+        x = dag,
+        exposure = exposure,
+        outcome = outcome,
+        effect = effect,
+        type = type
+      )
+    
+    
+    form_set <- lapply(temp_set, function(x) {
+      if (!is.null(remove))
+        x <- x[!x %in% remove]
+      form <-
+        paste(
+          formula_parts[1],
+          " ~ ",
+          exposure,
+          " + ",
+          paste(x, collapse =  " + "),
+          if (length(formula_parts) == 2)
+            formula_parts[2]
+          else
+            NULL
+        )
+      
+      return(form)
+    })
+    
+    form_set <- form_set[!duplicated(form_set)]
+    
+    if (!is.null(latent))
+      for (i in latent)
+        form_set <- form_set[!grepl(paste0(" ", i, " "), form_set)]
+    
+    # form_set <- sapply(form_set, as.formula)
+    
+    
+    names(form_set) <- seq_along(form_set)
+    
+    # add formula as attribute
+    attributes(form_set)$exposure.formula <- paste(formula_parts[1],
+                                                   " ~ ",
+                                                   exposure,
+                                                   if (length(formula_parts) == 2)
+                                                     formula_parts[2]
+                                                   else
+                                                     NULL)
+    
+    if (plot)
+    return(gg) else
+    return(form_set)
+  }
+
+# Define a function to remove special characters
+remove_special_chars <- function(text) {
+  # Replace special characters with hyphen
+  cleaned_text <- gsub("[^a-zA-Z0-9]+", "-", text)
+  # Remove leading and trailing hyphens
+  cleaned_text <- gsub("^-+|-+$", "", cleaned_text)
+  return(cleaned_text)
+}
+
+pa <- function(...)
+  brms::posterior_average(...)
+
+# to get average posterior values from models with different formulas
+averaged_model <-
+  function(formulas,
+           data,
+           model_call,
+           ndraws = 1000,
+           save.files = TRUE,
+           path = ".",
+           suffix = NULL,
+           cores = 1) {
+    # if (dir.exists(file.path(path, name))){
+    #   cat("Directory already existed. Attempting to fit missing models\n")
+    # cat("Fitting models (step 1 out of 2) ...")
+    # } else
+    # dir.create(path = file.path(path, name))
+    
+    cat("Fitting models (step 1 out of 2) ...")
+    fit_list <-
+      pblapply_brmsish_int(X = formulas, cl = cores, function(y) {
+        # make file name without special characters
+        mod_name <-
+          paste0(remove_special_chars(as.character(y)), ".RDS")
+        
+        if (save.files &
+            !file.exists(file.path(path, mod_name))) {
+          cat("Fitting", y, "\n")
+          mc <-
+            gsub(pattern = "formula",
+                 replacement = as.character(y),
+                 x = model_call)
+          
+          mc <- parse(text = mc)
+          
+          fit <- eval(mc)
+          
+          if (save.files)
+            saveRDS(fit, file = file.path(path, mod_name))
+          
+        } else {
+          cat("Reading", y, "(already existed)\n")
+          fit <- readRDS(file.path(path, mod_name))
+        }
+        return(fit)
+      })
+    
+    if (length(formulas) > 1){
+    cat("Averaging models (step 2 out of 2) ...")
+    average_call <-
+      parse(text = paste("pa(",
+                         paste(
+                           paste0("fit_list[[", seq_along(fit_list), "]]"), collapse = ", "
+                         ),
+                         ", ndraws = ",
+                         ndraws,
+                         ")"))
+    
+    # Evaluate the expression to create the call object
+    average_eval <- eval(average_call)
+    
+    # add formula as attribute
+    attributes(average_eval)$averaged_fit_formulas <- formulas
+    
+    rds_name <- if (is.null(suffix)) file.path(path, paste0(name, ".RDS")) else
+      file.path(path, paste0(suffix, "_", name, ".RDS"))
+    
+    if (save.files)
+      saveRDS(average_eval, file = rds_name)
+    
+    # return draws from average models
+    return(average_eval)
+    } else 
+    cat("No model averaging conducted as a single formula was supplied")
+  }
+
+to_change_percentage <- function(x){
+  
+  (exp(x) - 1) * 100
+  
+}
+
+```
+
+# Prepare data 
+
+## Read data
+```{r}
+#| eval: false
+
+
+clim_dat_2020 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2020")
+
+clim_dat_2019 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2019")
+
+clim_dat <- rbind(clim_dat_2019, clim_dat_2020)
+
+clim_dat <- clim_dat[, c("filename", "Año", "Mes", "Día", "Hora", "Temp (°C)", "Humedad Relat.", "Precipitación")]
+
+names(clim_dat) <- c("filename", "year", "month", "day", "hour", "temp", "HR", "rain")
+
+clim_dat <- aggregate(cbind(rain, temp, HR) ~ filename + year + month + day + hour, clim_dat, mean)
+
+clim_dat$year <- clim_dat$year + 2000
+
+clim_dat$date <- as.Date(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"))
+
+
+clim_dat$date_hour <- paste(gsub("-", "", clim_dat$date), clim_dat$hour, sep = "-")
+
+call_dat <- read.csv("./data/processed/call_rate_per_date_time_and_site.csv")
+
+# remove 5 pm data and keep only form Sukia
+call_dat <- call_dat[call_dat$hour != 17, ]
+call_dat <- call_dat[call_dat$site != "LAGCHIMU", ]
+
+
+call_dat$date_hour <- paste(sapply(as.character(call_dat$site_date_hour), function(x) strsplit(x, "_")[[1]][2]), call_dat$hour, sep = "-") 
+
+
+call_dat$temp <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$temp[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+
+call_dat$HR <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$HR[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+
+call_dat$rain <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$rain[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+# proportion of acoustic data with climatic data
+sum(call_dat$date_hour %in% clim_dat$date_hour) / nrow(call_dat)
+sum(!is.na(call_dat$temp)) / nrow(call_dat)
+
+
+call_dat <- call_dat[!is.na(call_dat$temp), ]
+
+call_dat$day <- as.numeric(substr(sapply(as.character(call_dat$site_date_hour), function(x) strsplit(x, "_")[[1]][2]), 7, 8))
+
+call_dat$date <- as.Date(paste(call_dat$year, call_dat$month, call_dat$day, sep = "-"))
+
+call_dat$moon.date <- ifelse(call_dat$hour < 12, as.Date(call_dat$date - 1), as.Date(call_dat$date))
+
+call_dat$moon.date <- as.Date(call_dat$moon.date, origin = "1970-01-02")
+
+## add moon
+call_dat$moonlight <- lunar.illumination(call_dat$moon.date, shift = -6)
+
+
+call_dat$date_hour_min <- strptime(paste(paste(call_dat$year, call_dat$month, call_dat$day, sep = "-"), paste(call_dat$hour, "00", sep = ":")), format="%Y-%m-%d  %H:%M")
+
+call_dat$hour_diff <- as.numeric(call_dat$date_hour_min - min(call_dat$date_hour_min)) / 3600
+
+
+call_dat$rain_24 <- sapply(1:nrow(call_dat), function(x) sum(clim_dat$rain[strptime(clim_dat$date, format="%Y-%m-%d") == (strptime(call_dat$date[x], format="%Y-%m-%d") - 60 * 60 * 24)]))
+
+call_dat$rain_48 <- sapply(1:nrow(call_dat), function(x) sum(clim_dat$rain[strptime(clim_dat$date, format="%Y-%m-%d") == (strptime(call_dat$date[x], format="%Y-%m-%d") - 60 * 60 * 48)]))
+
+clim_dat$date_hour_min <- strptime(paste(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"), paste(clim_dat$hour, "00", sep = ":")), format="%Y-%m-%d %H:%M")
+
+clim_dat$hour_diff <- as.numeric(clim_dat$date_hour_min - min(call_dat$date_hour_min)) / 3600
+
+# call_dat$prev_temp <- sapply(1:nrow(call_dat), function(x){
+#   
+#   # if(call_dat$hour_diff[x] < 48) 
+#   #   pt <- NA else
+#       pt <- mean(clim_dat$temp[clim_dat$hour_diff %in% (call_dat$hour_diff[x] - 48):(call_dat$hour_diff[x] - 24)])
+#     
+#     return(pt)
+# })
+
+write.csv(call_dat, "./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+```
+
+```{r by minute}
+#| eval: false
+#| include: false
+
+clim_dat_2020 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2020")
+
+clim_dat_2019 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2019")
+
+clim_dat <- rbind(clim_dat_2019, clicallm_dat_2020)
+
+clim_dat <- clim_dat[, c("filename", "Año", "Mes", "Día", "Hora", "Min1", "Temp (°C)", "Humedad Relat.", "Precipitación")]
+
+names(clim_dat) <- c("filename", "year", "month", "day", "hour","min", "temp", "HR", "rain")
+
+clim_dat$year <- clim_dat$year + 2000
+
+clim_dat$date <- as.Date(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"))
+
+clim_dat$date_hour <- paste(gsub("-", "", clim_dat$date), clim_dat$hour, sep = "-")
+
+call_dat <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+sub_clim <- clim_dat[clim_dat$date_hour %in% unique(call_dat$date_hour), ]
+
+sub_clim$n_call <- sapply(sub_clim$date_hour, function(x)  call_dat$n_call[call_dat$date_hour == x])
+
+sub_clim$rec_time <- sapply(sub_clim$date_hour, function(x)  call_dat$rec_time[call_dat$date_hour == x])
+
+sub_clim$call_rate <- sapply(sub_clim$date_hour, function(x)  call_dat$call_rate[call_dat$date_hour == x])
+
+sub_clim$rain_24 <- sapply(sub_clim$date_hour, function(x)  call_dat$rain_24[call_dat$date_hour == x])
+
+sub_clim$rain_48 <- sapply(sub_clim$date_hour, function(x)  call_dat$rain_48[call_dat$date_hour == x])
+
+sub_clim$moonlight <- sapply(sub_clim$date_hour, function(x)  call_dat$moonlight[call_dat$date_hour == x])
+
+sub_clim$date_hour_min <- strptime(paste(paste(sub_clim$year, sub_clim$month, sub_clim$day, sep = "-"), paste(sub_clim$hour, sub_clim$min, sep = ":")), format="%Y-%m-%d  %H:%M")
+
+sub_clim$min_diff <- as.numeric(sub_clim$date_hour_min - min(sub_clim$date_hour_min)) / 60
+
+write.csv(sub_clim, "./data/processed/acoustic_and_climatic_data_by_min.csv", row.names = FALSE)
+
+```
+
+# Descriptive stats
+```{r}
+#| eval: true
+
+call_dat_site <- read.csv("./data/processed/call_rate_per_date_time_and_site.csv")
+
+```
+
+- Total number of recordings: `r nrow(call_dat_site)`
+- Total recordings per site:
+
+```{r}
+#| eval: true
+#| output: asis
+
+agg_recs <- aggregate(rec_time ~ site, data = call_dat_site, length)
+names(agg_recs)[1:2] <- c("site", "rec_count")
+
+# print table as kable  
+kb <-kable(agg_recs, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+- Total recording time: `r round(sum(call_dat_site$rec_time) / 60)`
+
+- Total recording time per site:
+
+```{r}
+#| eval: true
+#| output: asis
+
+agg_recs <- aggregate(rec_time ~ site, data = call_dat_site, sum)
+names(agg_recs)[1:2] <- c("site", "recording_time")
+
+agg_recs$recording_time <- round((agg_recs$recording_time) / 60)
+
+# print table as kable  
+kb <-kable(agg_recs, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+- Total detections: `r sum(call_dat_site$n_call)`
+
+- Total detections per site:
+
+```{r}
+#| eval: true
+#| output: asis
+
+agg_recs <- aggregate(n_call ~ site, data = call_dat_site, sum)
+names(agg_recs)[1:2] <- c("calls", "count")
+
+# print table as kable  
+kb <-kable(agg_recs, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+- Call rate: `r mean(call_dat_site$call_rate)`
+
+- Call rate per site:
+
+```{r}
+#| eval: true
+#| output: asis
+
+agg_recs <- aggregate(call_rate ~ site, data = call_dat_site, mean)
+agg_recs$sd <- aggregate(call_rate ~ site, data = call_dat_site, FUN = stats::sd)[,2]
+
+names(agg_recs)[1:3] <- c("site", "call_rate", "sd")
+
+print_data_frame(agg_recs)
+```
+
+```{r}
+#| eval: true
+#| output: asis
+
+call_rate_hour <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+
+agg <- aggregate(cbind(temp, prev_temp, HR, rain, rain_24, rain_48, moonlight)~1, call_rate_hour, function(x) round(c(mean(x), sd(x), min(x), max(x)), 3))
+
+agg <- as.data.frame(matrix(unlist(agg), ncol = 4, byrow = TRUE, dimnames = list(c("Temperature", "Previous temperature", "Relative humidity", "Night rain", "Rain 24 hours", "Rain 48 hours", "Moonlight"),c("mean", "sd", "min", "max"))))
+# print table as kable  
+kb <-kable(agg, row.names = TRUE, digits = 3) 
+  
+kb <- kable_styling(kb, bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+print(kb)
+
+```
+
+Mean and SD temperature: `r mean(call_rate_hour$temp)` (`r sd(call_rate_hour$temp)`)
+
+Mean previous temperature: `r mean(call_rate_hour$prev_temp)`
+
+Mean temperature: `r mean(call_rate_hour$temp)`
+
+Mean cumulative rain per hour: `r mean(call_rate_hour$rain)`
+
+Mean cumulative rain per hour previous 24 hours: `r mean(call_rate_hour$rain_24)`
+
+Mean daily cumulative rain per hour previous 48 hours: `r mean(call_rate_hour$rain_48)`
+
+# Directed acyclical graphs (DAGs)
+```{r}
+#| eval: true
+
+coords <- list(
+  x = c(
+    sc_rain = -0.4,
+    evotranspiration = 0.5,
+    sc_prev_rain = 0.7,
+    sc_temp = -0.8,
+    climate = -0.8,
+    sc_HR = 0,
+    n_call = 0,
+    sc_moonlight = 0.3,
+    hour = -0.5
+  ),
+  y = c(
+    sc_rain = 0.4,
+    evotranspiration = 0.3,
+    sc_prev_rain = -0.5,
+    sc_temp = 0,
+    climate = 1,
+    sc_HR = -0.6,
+    n_call = 0,
+    sc_moonlight = 1,
+    hour = 0.9
+  )
+)
+
+# sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_24 + ar(p = 2, time = hour_diff, gr = hour
+# sc_temp = temp y meanT = prev_temp
+
+dag_l <- dagify(sc_rain ~ evotranspiration,
+                sc_prev_rain ~ evotranspiration, 
+               sc_temp ~ climate,
+               sc_temp ~ sc_rain,
+               sc_HR ~ sc_rain,
+               n_call ~ sc_HR,
+               n_call ~ hour,
+               n_call ~ sc_moonlight,
+               sc_moonlight ~ hour,
+               sc_temp ~ hour,
+               sc_HR ~ sc_temp,
+               sc_HR ~ sc_prev_rain,
+               sc_HR ~ sc_rain,
+               n_call ~ sc_temp,
+               n_call ~ sc_prev_rain,
+               n_call ~  sc_rain,
+               labels = c("n_call" = "Call\nrate", "sc_HR" = "Relative\nhumidity","sc_rain" = "Current\nrain", "sc_prev_rain" = "Prior\nrain", "sc_moonlight" = "Moonlight", "hour" = "Earth\nrotation", "sc_temp" = "Tempera-\nture", "evotranspiration" = "Evotrans-\npiration", "climate" = "Climate", latent = c("evotranspiration", "climate"), outcome = "n_call"), coords = coords)
+
+tidy_dag <- tidy_dagitty(dag_l)
+tidy_dag$data$type <- ifelse(is.na(tidy_dag$data$to), "outcome", "predictor")
+tidy_dag$data$type[tidy_dag$data$name %in% c("evotranspiration", "climate")] <- "latent" 
+
+
+dat <- tidy_dag$data
+shorten_distance <- c(0.07, 0.07)
+dat$slope <- (dat$yend - dat$y) / (dat$xend - dat$x)
+distance <- sqrt((dat$xend - dat$x)^2 + (dat$yend - dat$y)^2)
+proportion <- shorten_distance[1]/distance
+dat$xend <- (1 - proportion/2) * dat$xend + (proportion/2 * dat$x)
+dat$yend <- (1 - proportion/2) * dat$yend + (proportion/2*dat$y)
+proportion <- shorten_distance[2]/distance
+dat$xstart <- (1-proportion/2)*(dat$x - dat$xend) + dat$xend
+dat$ystart <- (1-proportion/2)*(dat$y - dat$yend) + dat$yend
+
+tidy_dag$data <- dat
+
+
+ggplot(tidy_dag, aes(
+  x = x,
+  y = y,
+  xend = xend,
+  yend = yend
+)) +
+  scale_color_viridis_d(begin = 0.2, end = 0.8, alpha = 0.5) +
+  geom_dag_text(color = "black", aes(label = label, color = label)) + labs(color = "Type") +
+  theme_dag() + theme(legend.position = "bottom") + guides(colour = guide_legend(override.aes = list(size =
+                                                                                                       10))) +  geom_dag_point(aes(color = type), size = 30) + expand_limits(y = c(-0.67, 1.1))  +
+  geom_dag_edges_fan(
+    edge_color = viridis(10, alpha = 0.4)[2],
+    arrow = grid::arrow(length = grid::unit(10, "pt"), type = "closed"),
+    aes(
+      x = xstart,
+      y = ystart,
+      xend = xend,
+      yend = yend
+    )
+  )
+
+
+dag_24 <- dagify(sc_rain ~ evotranspiration,
+                sc_rain_24 ~ evotranspiration, 
+                sc_temp ~ climate,
+               sc_temp ~ sc_rain,   
+               sc_HR ~ sc_rain,
+               n_call ~ sc_HR,
+               n_call ~ hour,
+               n_call ~ sc_moonlight,
+               sc_moonlight ~ hour,
+               sc_temp ~ hour,
+               sc_HR ~ sc_temp,
+               sc_HR ~ sc_rain_24,
+               sc_HR ~ sc_rain,
+               n_call ~ sc_temp,
+               n_call ~ sc_rain_24,
+               n_call ~  sc_rain,
+               labels = c("n_call" = "Call rate", "sc_HR" = "Relative humidity","sc_rain" = "Night Rain", "sc_rain_24" = "Previous Rain", "sc_moonlight" = "Moonlight", "hour" = "Earth rotation", "sc_temp" = "Temperature", "evotranspiration" = "Evotranspiration", "climate" = "Climate", latent = c("evotranspiration", "climate"), outcome = "n_call"))
+
+dag_48 <- dagify(sc_rain ~ evotranspiration,
+                sc_rain_48 ~ evotranspiration, 
+               sc_temp ~ climate,
+               sc_temp ~ sc_rain,
+               sc_HR ~ sc_rain,
+               n_call ~ sc_HR,
+               n_call ~ hour,
+               n_call ~ sc_moonlight,
+               sc_moonlight ~ hour,
+               sc_temp ~ hour,
+               sc_HR ~ sc_temp,
+               sc_HR ~ sc_rain_48,
+               sc_HR ~ sc_rain,
+               n_call ~ sc_temp,
+               n_call ~ sc_rain_48,
+               n_call ~  sc_rain,
+               labels = c("n_call" = "Call rate", "sc_HR" = "Relative humidity","sc_rain" = "Night Rain", "sc_rain_48" = "Previous Rain", "sc_moonlight" = "Moonlight", "hour" = "Earth rotation", "sc_temp" = "Temperature", "evotranspiration" = "Evotranspiration", "climate" = "Climate", latent = c("evotranspiration", "climate"), outcome = "n_call"))
+
+```
+
+# Bayesian regression models
+
+## Scale variables and set model parameters 
+```{r prepare data for models, eval = TRUE}
+
+call_rate_hour <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+# make hour a factor
+call_rate_hour$hour <- factor(call_rate_hour$hour)
+
+# scale and mean-center
+call_rate_hour$sc_temp <- scale(call_rate_hour$temp)
+call_rate_hour$sc_HR <- scale(call_rate_hour$HR)
+call_rate_hour$sc_rain <- scale(call_rate_hour$rain)
+call_rate_hour$sc_rain_24 <- scale(call_rate_hour$rain_24)
+call_rate_hour$sc_rain_48 <- scale(call_rate_hour$rain_48)
+call_rate_hour$sc_moonlight <- scale(call_rate_hour$moonlight)
+
+priors <- c(prior(normal(0, 4), class = "b"))
+chains <- 4
+iter <- 10000
+
+```
+
+## Fit all models
+```{r}
+#| eval: false
+
+param_grid <- expand.grid(
+  dag = c("dag_24", "dag_48"), 
+  exposure = c("sc_temp", "sc_HR", "sc_moonlight", "sc_rain", "sc_rain_24", "sc_rain_48"),
+  effect = c("total", "direct"), stringsAsFactors = FALSE
+  )
+
+param_grid$name <- apply(param_grid, 1, paste, collapse = "-")
+
+# remove wrong dags for previous rain
+param_grid <- param_grid[!(param_grid$dag == "dag_24" & param_grid$exposure == "sc_rain_48") & !(param_grid$dag == "dag_48" & param_grid$exposure == "sc_rain_24"), ]
+
+
+adjustment_sets_list <- pblapply(seq_len(nrow(param_grid)), cl = 1, function(x){
+  
+forms <- adjustment_set_formulas(
+  dag = if (param_grid$dag[x] == "dag_24") dag_24 else dag_48,
+  type = if (param_grid$effect[x] == "total") "all" else "minimal",
+  exposure = param_grid$exposure[x],
+  outcome = "n_call",
+  effect = param_grid$effect[x],
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+return(forms)
+})
+
+
+
+names(adjustment_sets_list) <- param_grid$name
+
+param_grid$model <-sapply(seq_len(nrow(param_grid)), function(x) {
+  if (param_grid$effect[x] == "direct")
+  adjustment_sets_list[[which(names(adjustment_sets_list) == param_grid$name[x])]] else
+    NA
+  }) 
+
+param_grid$model <- unlist(
+param_grid$model)
+param_grid <- as.data.frame(param_grid)
+
+write.csv(x = param_grid, file = "./data/processed/direct_and_total_effect_model_data_frame.csv", row.names = FALSE)
+
+direct_adjustment_sets_list <- adjustment_sets_list[grep("direct", names(adjustment_sets_list))]
+
+
+for(i in seq_len(direct_adjustment_sets_list))
+pa_comb_mod <-
+averaged_model(
+    formulas = direct_adjustment_sets_list[[i]],
+    data = call_rate_hour,
+    suffix = "direct",
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/single_models", 
+    name = "temperature_with_rain_24",
+    cores = 1
+  )
+
+
+model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')"
+formulas <- unlist(direct_adjustment_sets_list)
+path <-  "./data/processed/single_models"
+
+fit_list <- pblapply_brmsish_int(X = formulas, cl = 1, function(y) {
+        # make file name without special characters
+        mod_name <-
+          paste0(remove_special_chars(as.character(y)), ".RDS")
+        
+        if (!file.exists(file.path(path, mod_name))) {
+          cat("Fitting", y, "\n")
+          mc <-
+            gsub(pattern = "formula",
+                 replacement = as.character(y),
+                 x = model_call)
+          
+          mc <- parse(text = mc)
+          
+          fit <- eval(mc)
+          
+          if (save.files)
+            saveRDS(fit, file = file.path(path, mod_name))
+          
+        } 
+      })
+
+
+```
+
+## Exposure: Temperature
+
+*Prediction*: The increase in temperature at night causes that activity of A. lemur to decrease? 
+
+::: {.panel-tabset}
+
+### 24h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_24,
+  type = "all",
+  exposure = "sc_temp",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "temperature_with_rain_24",
+    cores = 1
+  )
+
+
+rds_files <- list.files(path = "./data/processed/models/temperature_with_rain_24/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/temperature_with_rain_24_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_temperature_with_rain_24.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_temperature_with_rain_24_fit_summary.RDS")
+
+```
+
+:::
+
+### 48h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_48,
+  type = "all",
+  exposure = "sc_temp",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "temperature_with_rain_48",
+    cores  = 1
+  )
+
+rds_files <- list.files(path = "./data/processed/models/temperature_with_rain_48/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores  = 16, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/temperature_with_rain_48_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_temperature_with_rain_48.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_temperature_with_rain_48_fit_summary.RDS")
+
+```
+
+::: 
+
+:::
+
+## Exposure: Relative humidity
+
+*Prediction*: Does an increase in relative humidity cause the activity of A. lemur to increase? 
+
+::: {.panel-tabset}
+
+### 24h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_24,
+  type = "all",
+  exposure = "sc_HR",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores  = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "humidity_with_rain_24",
+   cores = 1
+  )
+
+
+rds_files <- list.files(path = "./data/processed/models/humidity_with_rain_24/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/humidity_with_rain_24_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_humidity_with_rain_24.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_humidity_with_rain_24_fit_summary.RDS")
+```
+
+:::
+
+### 48h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_48,
+  type = "all",
+  exposure = "sc_HR",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "humidity_with_rain_48",
+   cores = 1
+  )
+
+
+rds_files <- list.files(path = "./data/processed/models/humidity_with_rain_48/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/humidity_with_rain_48_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_humidity_with_rain_48.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_humidity_with_rain_48_fit_summary.RDS")
+
+```
+
+:::
+
+:::
+
+## Exposure:  Moonlight
+
+*Prediction*: Decreasing the percentage of the moon illuminated causes an increase in A. lemur activity?
+
+::: {.panel-tabset}
+
+### 24h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_24,
+  type = "all",
+  exposure = "sc_moonlight",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "moon_with_rain_24",
+   cores = 1
+  )
+
+rds_files <- list.files(path = "./data/processed/models/moon_with_rain_24/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/moon_with_rain_24_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_moon_with_rain_24.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_moon_with_rain_24_fit_summary.RDS")
+
+```
+
+:::
+
+### 48h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_48,
+  type = "all",
+  exposure = "sc_moonlight",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "moon_with_rain_48",
+   cores = 1
+  )
+
+rds_files <- list.files(path = "./data/processed/models/moon_with_rain_48/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/moon_with_rain_48_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_moon_with_rain_48.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_moon_with_rain_48_fit_summary.RDS")
+
+```
+
+:::
+
+:::
+
+## Exposure:  Night rain
+
+::: {.panel-tabset}
+
+*Prediction*: If the night rain decreases can affect the A. lemur activity to increase?
+
+::: {.panel-tabset}
+
+### 24h previous rain as *previous rain* 
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_24,
+  type = "all",
+  exposure = "sc_rain",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "rain_with_rain_24",
+   cores = 1
+  )
+
+rds_files <- list.files(path = "./data/processed/models/rain_with_rain_24/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/rain_with_rain_24_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_rain_with_rain_24.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_rain_with_rain_24_fit_summary.RDS")
+
+```
+::: 
+
+### 48h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_48,
+  type = "all",
+  exposure = "sc_rain",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "rain_with_rain_48",
+   cores = 1
+  )
+
+rds_files <- list.files(path = "./data/processed/models/rain_with_rain_48/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/rain_with_rain_48_fit_summary.RDS")
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_rain_with_rain_48.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_rain_with_rain_48_fit_summary.RDS")
+```
+
+:::
+
+:::
+
+## Exposure:  Previous Rain
+
+*Prediction*: Does an increase in the accumulated previous rain causes that A. lemur activity to increase?
+
+::: {.panel-tabset}
+
+### 24h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_24,
+  type = "all",
+  exposure = "sc_rain_24",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "previous_rain_24",
+   cores = 1
+  )
+
+rds_files <- list.files(path = "./data/processed/models/previous_rain_24/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/previous_rain_24_fit_summary.RDS")
+
+
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_previous_rain_24.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_previous_rain_24_fit_summary.RDS")
+
+```
+
+:::
+
+### 48h previous rain as *previous rain* 
+
+::: {.panel-tabset}
+
+```{r}
+#| eval: false
+
+forms <- adjustment_set_formulas(
+  dag = dag_48,
+  type = "all",
+  exposure = "sc_rain_48",
+  outcome = "n_call",
+  required_variable = "hour",
+  formula_parts = c(
+    "n_call | resp_rate(rec_time)",
+    "+ ar(p = 2, time = hour_diff, gr = hour)"
+  ),
+  latent = c("evotranspiration", "climate"),
+  remove = "hour",
+  plot = FALSE
+)
+
+pa_comb_mod <-
+  averaged_model(
+    formulas = forms,
+    data = call_rate_hour,
+    model_call = "brm(formula, data = call_rate_hour, iter = iter, chains = chains, cores = chains, family = negbinomial(), prior = priors, backend = 'cmdstanr')",
+    save.files = TRUE,
+    path = "./data/processed/models", 
+    name = "previous_rain_48",
+   cores = 1
+  )
+
+rds_files <- list.files(path = "./data/processed/models/previous_rain_48/", pattern = "n-call", full.names = TRUE)
+
+fit_table <-
+  check_rds_fits(fits = rds_files, cores = 6, html = TRUE)
+
+saveRDS(fit_table, "./data/processed/models/previous_rain_48_fit_summary.RDS")
+
+```
+
+#### Models
+```{r}
+#| eval: true
+#| output: asis
+
+readRDS("./data/processed/averaged_models/total_effect_previous_rain_48_fit_summary.RDS")
+```
+
+#### Results
+```{r}
+#| eval: true
+#| output: asis
+
+draws <-
+  readRDS("./data/processed/averaged_models/total_effect_previous_rain_48.RDS")
+
+draw_extended_summary(
+  draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE
+)
+
+```
+
+:::
+
+:::
+
+---
+
+
+## Combined results with causal inference estimates
+
+Takes the posterior probability distributions from the right causal models
+
+::: {.panel-tabset}
+
+### 24h previous rain as *previous rain* 
+```{r}
+#| eval: false
+#| output: asis
+
+param_grid <- read.csv(file = "./data/processed/direct_and_total_effect_model_data_frame.csv")
+param_grid <- param_grid[param_grid$effect == "direct",]
+
+param_grid$file <- paste0(remove_special_chars(param_grid$model), ".RDS")
+
+rdss_24 <- list.files("./data/processed/averaged_models", pattern = "24.RDS", full.names = TRUE)
+
+combined_draws_list <- lapply(rdss_24, function(x) {
+  
+  total_draws <- readRDS(x)
+  
+  exp <-
+    attributes((attributes(total_draws)$averaged_fit_formulas))$exposure.formula
+  exp <-
+    gsub("n_call | resp_rate(rec_time)  ~  ", "", exp, fixed = TRUE)
+  exposure <-
+    exp <-
+    gsub(" + ar(p = 2, time = hour_diff, gr = hour)", "", exp, fixed = TRUE)
+  exp <- paste0("b_", exp)
+  total_draws <-
+    total_draws[, colnames(total_draws) == exp, drop  = FALSE]
+  names(total_draws) <- exp
+  
+  direct_fit_file <-
+    param_grid$file[param_grid$exposure == exposure]
+  
+  direct_fit_file <- direct_fit_file[!duplicated(direct_fit_file)]
+  
+  if (length(direct_fit_file) > 1)
+    direct_fit_file <- grep("24", direct_fit_file, value = TRUE)
+  
+  direct_fit <-
+    readRDS(file = file.path("./data/processed/averaged_models", direct_fit_file))
+  direct_draws <-
+    posterior::merge_chains(as_draws(direct_fit, variable = exp))
+  direct_draws <-
+    as.data.frame(thin_draws(direct_draws, thin = length(direct_draws[[1]][[1]])
+                             / (nrow(total_draws)))[[1]])
+  
+  direct_draws$effect <- "direct"
+  total_draws$effect <- "total"
+  
+  draws <- rbind(direct_draws, total_draws)
+  
+  return(draws)
+})
+
+combined_draws <- do.call(cbind, combined_draws_list)
+combined_draws <- combined_draws[, c(which(sapply(combined_draws, is.numeric)), ncol(combined_draws))]
+
+combined_draws[,-ncol(combined_draws)] <- to_change_percentage(combined_draws[,-ncol(combined_draws)])
+
+
+# combined_draws <- as.data.frame(combined_draws)
+combined_draws$effect <- ifelse(combined_draws$effect == "direct", "Direct", "Total")
+
+
+saveRDS(combined_draws, "./data/processed/combined_draws_for_total_and_direct_effects_24h_previous_rain.RDS")
+```
+
+```{r}
+#| eval: true
+#| output: asis
+
+combined_draws <- readRDS("./data/processed/combined_draws_for_total_and_direct_effects_24h_previous_rain.RDS")
+
+
+draw_extended_summary(
+  draws = combined_draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE,
+  fill = adjustcolor(c("#22A88480", "#43488C80"), alpha.f = 0.4),
+  by = "effect",
+  gsub.pattern = c(
+    "b_sc_HR",
+    "b_sc_rain$",
+    "b_sc_rain_24",
+    "b_sc_temp",
+    "b_sc_moonlight"
+  ),
+  gsub.replacement = c(
+    "Relative\nhumidity",
+    "Current\nrain",
+    "Prior\nrain",
+    "Temperature",
+    "Moonlight"
+  ), 
+  ylab = "Variable",
+  xlab = "Effect size (% of change)"
+)
+
+ggsave("./output/posterior_distribution_change_percentage_24h_previous_rain.png", width = 5, height = 3, dpi = 300)
+
+```
+
+### 48h previous rain as *previous rain* 
+```{r}
+#| eval: false
+#| output: asis
+
+param_grid <- read.csv(file = "./data/processed/direct_and_total_effect_model_data_frame.csv")
+param_grid <- param_grid[param_grid$effect == "direct",]
+
+param_grid$file <- paste0(remove_special_chars(param_grid$model), ".RDS")
+
+rdss_48 <- list.files("./data/processed/averaged_models", pattern = "48.RDS", full.names = TRUE)
+
+combined_draws_list <- lapply(rdss_48, function(x) {
+
+  total_draws <- readRDS(x)
+  
+  exp <-
+    attributes((attributes(total_draws)$averaged_fit_formulas))$exposure.formula
+  exp <-
+    gsub("n_call | resp_rate(rec_time)  ~  ", "", exp, fixed = TRUE)
+  exposure <-
+    exp <-
+    gsub(" + ar(p = 2, time = hour_diff, gr = hour)", "", exp, fixed = TRUE)
+  exp <- paste0("b_", exp)
+  total_draws <-
+    total_draws[, colnames(total_draws) == exp, drop  = FALSE]
+  names(total_draws) <- exp
+  
+  direct_fit_file <-
+    param_grid$file[param_grid$exposure == exposure]
+  
+  direct_fit_file <- direct_fit_file[!duplicated(direct_fit_file)]
+  
+  if (length(direct_fit_file) > 1)
+    direct_fit_file <- grep("48", direct_fit_file, value = TRUE)
+  
+  direct_fit <-
+    readRDS(file = file.path("./data/processed/averaged_models", direct_fit_file))
+  direct_draws <-
+    posterior::merge_chains(as_draws(direct_fit, variable = exp))
+  direct_draws <-
+    as.data.frame(thin_draws(direct_draws, thin = length(direct_draws[[1]][[1]])
+                             / (nrow(total_draws)))[[1]])
+  
+  direct_draws$effect <- "direct"
+  total_draws$effect <- "total"
+  
+  draws <- rbind(direct_draws, total_draws)
+  
+  return(draws)
+})
+
+combined_draws <- do.call(cbind, combined_draws_list)
+combined_draws <- combined_draws[, c(which(sapply(combined_draws, is.numeric)), ncol(combined_draws))]
+
+combined_draws[,-ncol(combined_draws)] <- to_change_percentage(combined_draws[,-ncol(combined_draws)])
+
+
+# combined_draws <- as.data.frame(combined_draws)
+combined_draws$effect <- ifelse(combined_draws$effect == "direct", "Direct", "Total") 
+
+saveRDS(combined_draws, "./data/processed/combined_draws_for_total_and_direct_effects_48h_previous_rain.RDS")
+```
+
+```{r}
+#| eval: true
+#| output: asis
+
+combined_draws <- readRDS("./data/processed/combined_draws_for_total_and_direct_effects_48h_previous_rain.RDS")
+
+
+draw_extended_summary(
+  draws = combined_draws,
+  highlight = TRUE,
+  remove.intercepts = TRUE,
+  fill = adjustcolor(c("#22A88480", "#43488C80"), alpha.f = 0.4),
+  by = "effect",
+  gsub.pattern = c(
+    "b_sc_HR",
+    "b_sc_rain$",
+    "b_sc_rain_48",
+    "b_sc_temp",
+    "b_sc_moonlight"
+  ),
+  gsub.replacement = c(
+    "Relative\nhumidity",
+    "Current\nrain",
+    "Prior\nrain",
+    "Temperature",
+    "Moonlight"
+  ), 
+  ylab = "Variable",
+  xlab = "Effect size (% of change)"
+)
+
+ggsave("./output/posterior_distribution_change_percentage_48h_previous_rain.png", width = 5, height = 3, dpi = 300)
+
+
+```
+
+:::
+
+```{r}
+#| eval: false
+
+# Conditional plots
+
+#Measured based on the global model
+
+## Rain and temperature
+
+
+glob_mod_24 <- readRDS("./data/processed/regression_models/global_rain_24.rds")
+
+conditions <- data.frame(sc_temp = c(`Low temperature` = -1, `Mean temperature` = 0, `High temperature` = 1))
+
+rain_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 520)) + ggtitle("Current rain") +  labs(x = "Rain", y = "Call activity (calls/hour)")
+
+rain24_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain_24", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 520)) + ggtitle("Previous 24h rain") + labs(x = "Rain", y = "Call activity (calls/hour)") 
+
+glob_mod_48 <- readRDS("./data/processed/regression_models/global_rain_48.rds")
+
+rain48_gg <- plot(conditional_effects(glob_mod_48, effects = "sc_rain_48", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 520)) + ggtitle("Previous 48h rain") + labs(x = "Rain", y = "Call activity (calls/hour)")
+
+
+cowplot::plot_grid(rain_gg, rain24_gg, rain48_gg, nrow = 3)
+
+```
+
+```{r}
+#| eval: false
+
+glob_mod_24 <- readRDS("./data/processed/regression_models/global_rain_24.rds")
+
+conditions <- data.frame(sc_temp = c(`Low temperature` = -1, `Mean temperature` = 0, `High temperature` = 1))
+
+plot(conditional_effects(glob_mod_24, effects = "sc_rain", sd = F))
+
+
+
+```
+
+## Relative humidity and temperature
+```{r}
+#| eval: false
+
+conditions <- data.frame(sc_temp = c(`Low temperature` = -1, `Mean temperature` = 0, `High temperature` = 1))
+
+hr_temp_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Relative humidity", y = "Call activity (calls/hour)")
+
+hr_temp_gg
+
+conditions <- data.frame(sc_HR = c(`Low humidity` = -1, `Mean humidity` = 0, `High humidity` = 1))
+
+temp_hr_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_temp", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Temperature", y = "Call activity (calls/hour)")
+
+temp_hr_gg
+
+```
+
+## Relative humidity and rain
+```{r}
+#| eval: false
+
+conditions <- data.frame(sc_rain = c(`Low rain` = -1, `Mean rain` = 0, `High rain` = 1))
+
+
+rain_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 75)) + ggtitle("Current rain")
+
+rain24_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 75)) + ggtitle("Previous 24h rain") 
+
+rain48_gg <- plot(conditional_effects(glob_mod_48, effects = "sc_HR", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ylim(c(0, 75)) + ggtitle("Previous 48h rain") 
+
+cowplot::plot_grid(rain_gg, rain24_gg, rain48_gg, nrow = 3)
+
+
+conditions <- data.frame(sc_HR = c(`Low humidity` = -1, `Mean humidity` = 0, `High humidity` = 1))
+
+rain_hr_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ggtitle("Current rain") + labs(x = "Rain", y = "Call activity (calls/hour)")
+
+rain24_hr_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_rain_24", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ggtitle("Previous 24h rain") + labs(x = "Rain previous", y = "Call activity (calls/hour)")
+
+rain48_hr_gg <- plot(conditional_effects(glob_mod_48, effects = "sc_rain_48", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + ggtitle("Previous 48h rain") + labs(x = "Rain previous", y = "Call activity (calls/hour)")
+
+cowplot::plot_grid(rain_hr_gg, rain24_hr_gg, rain48_hr_gg, nrow = 3)
+
+```
+
+## Moonlight and temperature
+```{r}
+#| eval: false
+
+conditions <- data.frame(sc_temp = c(`Low temperature` = -1, `Mean temperature` = 0, `High temperature` = 1))
+
+moon_temp_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_moonlight", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Moonlight", y = "Call activity (calls/hour)")
+
+moon_temp_gg
+
+conditions <- data.frame(sc_moonlight = c(`Low moonlight` = -1, `Mean moonlight` = 0, `High moonlight` = 1))
+
+temp_moon_gg <- plot(conditional_effects(glob_mod_24, effects = "sc_temp", 
+                         conditions = conditions), plot = FALSE)[[1]] +
+  scale_color_viridis_d() + theme_classic() + labs(x = "Temperature", y = "Call activity (calls/hour)")
+
+temp_moon_gg
+
+```
+
+
+```{r}
+#| eval: false
+
+# st <- data.frame(sound.files = "FIGURA_LEMUR.wav", selec = 1, start = 0.1, end = 0.4)
+
+# tweak_spectro(st, length.out = 20, ovlp = 99, wl = c(100, 1000), pal = c("reverse.gray.colors.2", "viridis", "reverse.terrain.colors"), path = "./figures/Figura_canto_lemur", flim = c(1, 4), ncol = 10, nrow = 6, width = 15, collev.min = c(-110))
+
+wav <- readWave("./figures/Figura_canto_lemur/FIGURA_LEMUR.wav")
+
+graphics.off()
+par(mfrow = c(2, 1), mar = c(0, 4, 4, 1))
+
+warbleR:::spectro_wrblr_int2(wav, flim = c(1, 4), wl = 700, grid = F, collevels = seq(-125, 0 ,1), ovlp = 0, palette = viridis, axisX = FALSE)
+
+peaks <- c(0.320165, 0.9, 1.7, 2.6, 3.5, 4.2, 4.5) # + seq(-0.1, 0.2, length.out = 7)
+valleys <- seq(0, duration(wav) + 0.3, length.out = 100)
+
+cor_dat <- data.frame(time = c(peaks, valleys), cor = c(rep(0.7, length(peaks)), rep(0.1, length(valleys))))
+
+cor_dat$cor <- cor_dat$cor  + rnorm(nrow(cor_dat), sd = 0.03)
+cor_dat$cor <- smoothw(cor_dat$cor, wl=2, f = 10)
+
+
+cor_dat <- cor_dat[order(cor_dat$time),]
+
+par(mar = c(2, 4, 0, 1))
+
+plot(cor_dat$time, cor_dat$cor, type = "l", xaxs="i")
+
+
+
+spectro(wav, flim = c(1, 4), wl = 700, grid = F, collevels = seq(-125, 0 ,1), ovlp = 99, palette = viridis, axisX = FALSE, tlim = c(1.53, 1.63), scale = FALSE, flab = "Frecuencia (kHz)", tlab = "Tiempo (s)")
+
+```
+
+
+```{r}
+#| eval: false
+
+template <- data.frame(sound.files = "FIGURA_LEMUR.wav", selec = 1, start = 1.55, end = 1.61, bottom.freq = 2, top.freq = 3)
+
+
+# get correlations
+correlations <-
+  template_correlator(templates = template,
+                      files = "FIGURA_LEMUR.wav",
+                      path = "./figures/Figura_canto_lemur/")
+
+
+thresh <- 0.7
+# run detection
+detection <-
+  template_detector(template.correlations = correlations, threshold = thresh)
+
+reference <-
+  template_detector(template.correlations = correlations, threshold = 0.55)
+detection
+
+
+# plot spectrogram
+label_spectro_temp(
+  wave = wav,
+  reference = reference,
+  detection = detection,
+  template.correlation = correlations[[1]],
+  flim = c(1, 4),
+  threshold = thresh,
+  hop.size = 10, ovlp = 50, collevels = seq(-125, 0 ,1), 
+  col.line = c("#AFBF35","#F20505", "#F2622E"),
+   flab = "Frecuencia (kHz)", tlab = "Tiempo (s)")
+
+#012623 
+#034941 
+#AFBF35 
+#F2622E 
+#F20505
+
+
+
+```
+
+---
+
+
+<!-- light green box -->
+
+<div class="alert alert-success">
+
+&nbsp; 
+
+# Takeaways
+
+- 
+
+</div>
+
+&nbsp;
+
+<div class="alert alert-info">
+
+# Sum up results
+
+-  
+
+</div>
+
+
+# Next steps
+
+- Run Moon with previous rain 24h with thinning so all models can be merged
+
+&nbsp; 
+
+---
+
+# Session information {.unnumbered .unlisted}
+
+```{r session info, echo=F, eval = TRUE}
+
+sessionInfo()
+
+```

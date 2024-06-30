@@ -1,0 +1,271 @@
+---
+title: "<center><font size="6"><b>Simulation for statistical analysis</b></font></center>"
+author: "<center><font size=\"4\"><a href=\"http://marceloarayasalas.weebly.com/\">Marcelo
+  Araya-Salas, PhD</a> &  Fabiola Chirino</font></center>"
+date: "<center>`r format(Sys.Date(), \"%d-%m-%Y\")`</center>"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_document:
+    toc: yes
+    toc_depth: 3
+    code_folding: hide
+    df_print: kable
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+subtitle: <center><font size="4"><b> Agalychnis lemur</b></font></center>
+fontsize: 12pt
+editor_options:
+  chunk_output_type: console
+---
+
+Simulate data following DAG:
+
+```{r}
+# read climatic data
+clm_dat <- read.csv(file = "~/Dropbox/estudiantes/Fabiola/proyecto_lemur/data/processed/acoustic_and_climatic_data_by_hour.csv")
+# install.packages("oce")
+
+library(oce)
+library(corrplot)
+
+dt <- as.POSIXct(paste(clm_dat$date[1], "00:00:00"), tz="UTC")
+
+time <- paste0(paste0(ifelse(nchar(clm_dat$hour) == 1, "0", ""), clm_dat$hour), ":00:00")
+
+# this must be fixed
+clm_dat$sun <- oce::sunAngle(as.POSIXct(paste(clm_dat$date, time), tz="UTC"), lat = 9 + 55 / 60, lon = 83 + 11 / 60)$altitude * -1
+
+# head(clm_dat)
+
+base_dat <-  clm_dat[, c("hour_diff", "temp", "sun", "hour")]
+
+base_dat$temp <- scale(base_dat$temp)[,1]
+base_dat$sun <- scale(base_dat$sun)[,1]
+
+cor(base_dat$sun, base_dat$temp, use = "pairwise.complete.obs")
+
+# temperature 24 hours before
+base_dat$prev_temp <- sapply(1:nrow(base_dat), function(x){
+  
+  if(base_dat$hour_diff[x] < 48) 
+    pt <- NA else
+      pt <- mean(base_dat$temp[(base_dat$hour_diff[x] - 48):(base_dat$hour_diff[x] - 24)])
+    
+    return(pt)
+})
+
+
+# set seed
+set.seed(123)
+base_dat <- base_dat[complete.cases(base_dat), ]
+# base_dat <- base_dat[sample(1:nrow(base_dat), 1000),]
+
+
+# global variables
+intrcpt <- 2
+b1 <- 1
+b_sun <- -0.3
+b_rel_hum <- 2
+b_temp <- 3
+b_moon <- -1
+b_clouds <- -1.3
+b_nite_rain <- -0.7
+b_prev_rain <- 0
+b_prev_temp <- 4
+n <- nrow(base_dat)
+variance <- 4
+error <- function(n, variance) rnorm(mean = 0, n = n, sd = variance^2)
+
+# random variables
+# moon
+base_dat$moon <- b1 * base_dat$sun + error(n, variance)
+
+# clouds
+base_dat$clouds <- b1 * base_dat$prev_temp + error(n, variance)
+
+# night rain
+base_dat$nite_rain <- b1 * base_dat$clouds + error(n, variance)
+
+# rain 24 hours before
+base_dat$prev_rain <-  b1 * base_dat$clouds + error(n, variance)
+
+# re write temp 
+base_dat$temp <- b1 * base_dat$sun + b1 * -1 * base_dat$nite_rain + error(n, variance)
+
+# relative humidity 
+base_dat$rel_hum <- b1 * base_dat$prev_rain + b1 * base_dat$nite_rain +  b1 * base_dat$temp + error(n, variance)
+
+
+# call rate
+base_dat$call_rate <- intrcpt  + b_sun * base_dat$sun + b_temp * base_dat$temp + b_prev_temp * base_dat$prev_temp + b_moon * base_dat$moon + b_rel_hum * base_dat$rel_hum + b_nite_rain * base_dat$nite_rain + b_prev_rain * base_dat$prev_rain + error(n, variance)
+
+# n calls
+base_dat$n_call <- round((base_dat$call_rate + abs(min(base_dat$call_rate, na.rm = TRUE))), 0) 
+
+# corrplot.mixed(cor(base_dat, use = "pairwise.complete.obs"))
+
+base_dat_filt <- base_dat[complete.cases(base_dat), ]
+
+base_dat_filt$rec_time  <- 60
+
+
+# dev.off()
+par(mfrow = c(4, 2), mar = c(0, 0, 4, 0))
+
+plot(base_dat$call_rate ~ base_dat$sun, main = "sun")
+plot(base_dat$call_rate ~ base_dat$rel_hum, main = "relative hum")
+plot(base_dat$call_rate ~ base_dat$temp, main = "temp")
+plot(base_dat$call_rate ~ base_dat$moon, main = "moon")
+plot(base_dat$call_rate ~ base_dat$clouds, main = "clouds")
+plot(base_dat$call_rate ~ base_dat$nite_rain, main = "nite rain")
+plot(base_dat$call_rate ~ base_dat$prev_rain, main = "prev rain")
+plot(0)
+```
+
+
+Biological questions of interest: 
+
+The increase in relative humidity, decrease in temperature, increase in the previous accumulated rain, decrease in the night rain, decrease in the percentage of the moon illuminated cause the activity of A. lemur to increase? 
+
+(A mi me interesa comprender si las variables en conjunto tienen un efecto en predecir la actividad de A. lemur) 
+
+call rate ~ Temperature + HR + night rain + previous rain + mean temperature + moon + hour
+
+(mean temperature = prev_temp)
+```{r}
+library(brms)
+
+priors <- c(prior(normal(0, 4), class = "b"))
+ 
+fit <- brm(n_call | resp_rate(rec_time) ~  temp + rel_hum + moon + nite_rain + prev_rain + prev_temp + moon + ar(p = 2, time = hour_diff, gr = hour), data = base_dat_filt, chains = 1, family = negbinomial(), iter = 600, prior = priors, cores = 1, warmup = 300)
+
+fit
+
+```
+
+The increase in temperature at night causes that activity of A. lemur to decrease? 
+
+call rate ~ Hour + night rain + 24 h rain / 12 h rain + Temperature
+
+(En caso de esta pregunta observando el DAG podemos incluir HR para hacer el ejercicio de abrir un backdoor path y se introduzca un sesgo en el análisis de estimar el efecto directo de la temperatura en la actividad de A. lemur) de igual forma si no ajustamos por night rain se puede abrir una via en la que la actividad de A. lemur este explicado por la lluvia de la noche y no por la temperatura per se.  
+
+```{r}
+
+# closed backdoor
+fit2 <- brm(n_call | resp_rate(rec_time) ~  nite_rain + prev_rain + temp + moon + ar(p = 2, time = hour_diff, gr = hour), data = base_dat_filt, chains = 1, family = negbinomial(), iter = 400, prior = priors, cores = 1)
+
+# open backdoor adding relative humidity
+fit3 <- brm(n_call | resp_rate(rec_time) ~  rel_hum + nite_rain + prev_rain + temp + moon + ar(p = 2, time = hour_diff, gr = hour), data = base_dat_filt, chains = 1, family = negbinomial(), iter = 400, prior = priors, cores = 1)
+
+
+fit2
+
+fit3
+
+```
+
+
+
+Does an increase in relative humidity cause the activity of A. lemur to increase? 
+call rate ~ Temperature + night rain + 12 h rain/ 24 h rain 
+
+(Para humedad relativa podriamos quitar la variable de previous rain y abrir ese backdoor path en el que el efecto de la lluvia previa se explique por medio de otra variable y no pasando por RH) 
+
+Does an increase in the accumulated previous rain causes that A. lemur activity decreases?
+
+call rate ~ Temperature + night rain + hour + 12 h rain / 24 h rain 
+
+(Estimar el efecto de la Lluvia previa me confunde un poco porque creo que si en este modelo incluimos por ejemplo la variable de RH puede ser que estimemos el efecto de la humedad relativa que pasa por previous rain anulando el efecto de la lluvia previa. Pero no entiendo por que deberíamos de meter hora según el adjustment set por ejemplo…) 
+Decreasing the percentage of the moon illuminated causes an increase in A. lemur activity?
+call rate ~ moon + hour
+
+(En este caso Podemos ver que pasa si al agregar temperature se agrega un sesgo por la variable hora) 
+If the night rain decreases can affect the A. lemur activity to increase?
+call rate ~ meanT + 24 h rain + night rain 
+
+(No incluir mean temp en este modelo abriría un backdoor path que pasa por la lluvia previa, si nos interesa el efecto total de night rain podríamos jugar con esas dos variables tanto previous rain como mean temp).
+
+```{r}
+library(brms)
+# 
+# 
+# 
+# fit <- brm(n_call | resp_rate(rec_time) ~  temp + rel_hum + moon + nite_rain + prev_rain + ar(p = 2, time = hour_diff, gr = hour), data = base_dat_filt, chains = 1, family = negbinomial(), iter = 800)
+# 
+# fit
+
+fit_nrm <- brm(call_rate ~  temp + rel_hum + moon + nite_rain + prev_rain + ar(p = 2, time = hour_diff, gr = hour), data = base_dat_filt, chains = 1, family = gaussian(), iter = 800)
+
+fit_nrm
+# 
+# fit2
+# fit_2 <- brm(n_call | resp_rate(rec_time) ~  temp + rel_hum + moon + nite_rain + prev_rain, data = base_dat_filt, chains = 1, family = negbinomial(), iter = 1000)
+# fit_2
+
+
+fit_nrm_notemp <- brm(call_rate ~  rel_hum + moon + nite_rain + prev_rain + ar(p = 2, time = hour_diff, gr = hour), data = base_dat_filt, chains = 1, family = gaussian(), iter = 800)
+
+fit_nrm2
+
+# RH effect
+fit_nrm_rh <- brm(call_rate ~ temp + rel_hum + nite_rain + prev_rain + ar(p = 2, time = hour_diff, gr = hour), data = base_dat_filt, chains = 1, family = gaussian(), iter = 800)
+
+fit_nrm_rh
+
+fit_nrm_rh_no_time <- brm(call_rate ~ temp + rel_hum + nite_rain + prev_rain, data = base_dat_filt, chains = 1, family = gaussian(), iter = 800)
+
+
+```
+
+# Simulate ARMA model
+```{r, eval = FALSE}
+# https://www.apress.com/us/blog/all-blog-posts/simulating-autoregressive-and-moving-average-time-series-in-r/16711624
+
+arfun <- function( n=10000, a1=0.18828, a2=0.05861 ) {
+  
+  # generate n+2 standard normal variates
+  
+  # E = rnorm(n+2)
+  E <- sin(x = 1:(n + 2)) + rnorm(n + 2, 0, 0.5)
+  # create an autoregressive process and plot the first 200 observations,
+  # the autocorrelation function, and the partial autocorrelation function
+  
+  Y = numeric(n)
+  Y[1] = E[3] + a1*E[2] + a2*E[1]
+  Y[2] = E[4] + a1*Y[1] + a2*E[2]
+  for (i in 3:n) Y[i] = E[i+2] + a1*Y[i-1] + a2*Y[i-2]
+  
+  par( mfcol=c( 3, 2 ) )
+  
+  plot(Y[ 1:200 ], type="l", main="autoregressive")
+  acf( Y )
+  pacf( Y )
+  
+  # create moving average process and plot the first 200 observations,
+  # the autocorrelation function, and the partial autocorrelation function
+  
+  
+  X = numeric( n )
+  for (i in 1:n ) X[ i ] = E[ i+2 ] + a1*E[ i+1 ] + a2*E[ i ]
+  
+  plot(X[ 1:200 ], type="l", main="moving average")
+  acf( X )
+  pacf( X )
+}
+arfun(n = 200, a1 = 0.2, a2 = 0.2)
+
+```
+
+
+---
+
+<font size="4">Session information</font>
+
+```{r session info, echo=F, eval = TRUE}
+
+sessionInfo()
+
+```

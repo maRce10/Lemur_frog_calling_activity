@@ -1,0 +1,5 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	63.596996499	63.621594366	2249.5	2505.2	SUKIA_20191218_030000_5min_cut.wav	63.5970	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191218_030000_5min_cut.wav
+1	Selection Spectrum 1	1	63.596996499	63.621594366	2249.5	2505.2	SUKIA_20191218_030000_5min_cut.wav	63.5970	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191218_030000_5min_cut.wav
+2	Spectrogram 1	1	248.210191787	248.263487165	2283.6	2474.5	SUKIA_20191218_030000_5min_cut.wav	248.2102	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191218_030000_5min_cut.wav
+2	Selection Spectrum 1	1	248.210191787	248.263487165	2283.6	2474.5	SUKIA_20191218_030000_5min_cut.wav	248.2102	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191218_030000_5min_cut.wav

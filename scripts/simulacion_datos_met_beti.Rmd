@@ -1,0 +1,198 @@
+---
+title: "Simulacion para Fabi"
+author: "Beatriz Willink"
+date: "5/12/2021"
+output: html_document
+---
+
+Este es un mundo alternativo en el que conocemos (inventamos) la realidad y la realidad es sumamente sencilla.
+
+Empezamos con las variables temporales
+```{r}
+# Hay dos anios de muestreo
+year <- seq(1:2)
+# El muestreo es por 365 dias al anio
+day <- seq(1:365)
+
+# Las horas de muestreo van 5 pm a 5 am. Son 12 h en total. Vamos a recodificar las horas de h = 1 (5 pm) a h = 12 (5 am).
+hour <- seq(1:12)
+
+# Ahora juntemos esto
+dat <- expand.grid(hour= hour, day = day, year = year)
+
+# Cuantas observaciones tenemos?
+N <- nrow(dat)
+```
+
+### Ahora las variables ambientales
+
+Empecemos con la humedad relativa que va a afectar a todo lo demas. La humedad es estacional. Digamos, por decir algo, que del 1 octubre al 31 de diciembre es "epoca seca". 
+```{r}
+# La mayor parte del tiempo la humedad es biel alta
+b <- 3
+# El efecto promedio de la epoca lluviosa es aumentar la humedad 
+b_wet <-4 
+
+# El primero de octubre es el dia 273
+s_dry <- 273
+
+for (i in 1:N){
+  # si estamos en epoca humeda dejamos la humedad como esta
+  if(dat$day[i] < s_dry) {
+    dat$humidity[i] <-rbeta(n = 1, shape1 = (b+b_wet), shape2 = 2)
+  } else {
+    # si estamos en epoca seca, reducimos la humedad
+    dat$humidity[i] <- rbeta(n = 1, shape1 = b, shape2 = 2)
+  }
+}
+
+
+#por ahora la humedad se mantiene toda la noche fluctuando solo de manera estocastica.
+hist(dat$humidity)
+plot(dat$humidity ~ dat$day)
+```
+
+Ahora vamos con la luz. Por ahora vamos a tratar a la luz como una variable continua entre -1 y 1. Digamos que en 2 anios hay 25 lunas llenas
+```{r}
+# usemos una funcion sinoidal para esto
+light_basal_day <- sin(seq(1, 52.05, 0.07) * pi)
+
+# si fuera perfecto se veria algo asi
+plot(light_basal_day, type="b")
+
+# la luz ademas se reduce de  5 pm a 11 pm y luego se aclara de 11 pm a 5 am
+light_basal_hour <- c() 
+
+m = 1
+for (i in 1:length(light_basal_day)){
+  for (j in 1:max(hour)){
+    light_basal_hour[m] <- -light_basal_day[i]^2 * abs(hour[j]-median(hour))/median(hour) + light_basal_day[i] + abs(hour[j]-median(hour))/median(hour)
+    m = m +1
+  }
+}
+  
+plot(light_basal_hour[25:36])
+hist(light_basal_day)
+hist(light_basal_hour)
+
+# cuando la humedad es alta hay nubes y se reduce la luz.
+# el efecto de la luz es de 0.8 mas algo de error
+
+b_hum_light <- dat$humidity * rnorm(n = N, mean = 0.8, sd = 0.1)
+hist(b_hum_light)
+  
+for (i in 1:N){
+  dat$light[i] <- light_basal_hour[i] - b_hum_light[i]
+}
+
+hist(dat$light)
+
+# sanity check
+plot(dat$light ~ dat$day)
+
+# luz a las 7 pm a lo largo del anio 1 
+dat_7 <- dat[which(dat$hour == 2 & dat$year == 1),]
+
+plot(dat_7$light ~ dat_7$day, type="b")
+```
+Sigue precipitacion. Solo puede llover si la humedad es alta, digamos que > 90%
+
+```{r}
+# llueve el 15% del tiempo
+length(which(dat$humidity > 0.90))/N
+
+# si llueve llueve en promedio 4 mm en epoca lluviosa y 2 mm en epoca seca 
+for (i in 1:N) {
+  if (dat$humidity[i] < 0.9) {
+    dat$precip[i] <- 0
+  }
+  else {
+    if (dat$day[i] < s_dry) {
+      dat$precip[i] <- rnorm(n = 1, mean = 4, sd =  2)
+    }  else {
+      dat$precip[i] <- rnorm(n = 1, mean = 2, sd =  2)
+    }
+  }
+}
+
+plot(dat$precip ~ dat$day)
+```
+
+Por ultimo temperatura. Vamos a asumir que de 5 pm a 5 am se enfria 3C pero la temperatura es constante durante el anio. Ademas cuando llueve se refresca 2 grados mas
+```{r}
+temp_basal <- rnorm(n = N, mean = 25, sd = 2)
+
+for (i in 1:N){
+  if(dat$precip[i] == 0) {
+    dat$temp[i] <- temp_basal[i] - dat$hour[i]/max(hour)*3
+  } else {
+    dat$temp[i] <- temp_basal[i] - dat$hour[i]/max(hour)*3 - 2 
+  }
+}
+
+hist(dat$temp)
+```
+Ahora vamos con la variable de respuesta. La actividad de canto aumenta con la humedad, aumenta con la luz y disminuye con la temperatura. Por ahora, las ranas solo cantan si llovio el dia anterior.
+
+```{r}
+
+for (i in 1:N) {
+  if (dat$day[i] == 1) {
+    dat$canto[i] <- 0
+  }
+  else {
+    if (sum(dat$precip[which(dat$day == (dat$day[i] - 1) &
+                             dat$year == dat$year[i])]) > 0) {
+      lambda <- 10 + dat$humidity[i] + dat$light[i]*0.1 - dat$temp[i] * 0.05
+      dat$canto[i] <- rpois(n = 1, lambda = lambda)
+    } else {
+      dat$canto[i] <- 0
+    }
+  }
+}
+
+plot(dat$canto ~ dat$day)
+
+```
+
+Ahora veamos que "efectos" detectamos con un modelo inocente
+
+```{r}
+m1 <- glm(canto ~ humidity + precip + temp + light + hour, family = "poisson", data = dat)
+
+summary(m1)
+```
+
+
+Y con el lag en precipitacion
+```{r}
+for(i in 1:N){
+  dat$precip_lag1[i] <- sum(dat$precip[which(dat$day == (dat$day[i] - 1) &
+                             dat$year == dat$year[i])])
+ }
+
+m2 <- glm(canto ~ humidity + precip + temp + light + precip_lag1 + hour, family = "poisson", data = dat)
+
+summary(m2)
+```
+
+Y con un efecto aleatorio de dia (que no simulamos de manera explicita...)
+```{r}
+require(lme4)
+
+m3 <- glmer(canto ~ humidity + precip + temp + light + precip_lag1 + (1|day), family = "poisson", data = dat)
+
+summary(m3)
+```
+
+y con el "efecto" de la estacion
+```{r}
+for (i in 1:N){
+  if(dat$day[i] < 273){dat$season[i] <- "W"} else {dat$season[i] <- "D"}}
+
+
+m4 <- glm(canto ~ humidity + precip + temp + light + precip_lag1 + season, family = "poisson", data = dat)
+
+summary(m4)
+```
+

@@ -1,0 +1,438 @@
+---
+title: <center><font size="6"><b>Song detection on all data</b></font></center>
+subtitle: <center><font size="4"><b>Automatic song detection in A. lemur</b></font></center>
+author: <center><font size="4"><a href="http://marceloarayasalas.weebly.com/">Marcelo Araya-Salas, PhD</a> &  Fabiola Chirino</font></center>
+date: <center>`r format(Sys.Date(), "%d-%m-%Y")`</center>
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    code_folding: hide
+    df_print: kable
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+fontsize: 12pt 
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load packages
+```{r packages, message = FALSE, warning = FALSE, eval = TRUE}
+
+## add 'developer/' to packages to be installed from github
+x <- c("devtools", "maRce10/warbleR", "bioacoustics", "pbapply", "Rraven", "parallel", "viridis", "ggplot2", "knitr", "kableExtra", "maRce10/ohun", "DT", "formatR", "ranger", "chron")
+
+aa <- lapply(x, function(y) {
+  
+  # get pakage name
+  pkg <- strsplit(y, "/")[[1]]
+  pkg <- pkg[length(pkg)]
+  
+  # check if installed, if not then install 
+  if (!pkg %in% installed.packages()[,"Package"])  {
+
+      if (grepl("/", y))  devtools::install_github(y, force = TRUE) else
+    install.packages(y) 
+    }
+
+  # load package
+  try(require(pkg, character.only = T), silent = T)
+})
+
+opts_knit$set(root.dir = "..")
+
+```
+
+```{r functions, eval = TRUE, echo = FALSE}
+
+#warbleR_options(wav.path = "./data/raw/sound_files/10_kHz_5_min_cuts", wl = 300, parallel = parallel::detectCores() - 3, bp = "frange", fast = F, threshold = 15, ovlp = 20)
+
+warbleR_options(wav.path = "/media/m/Agalychnis/Agalychnis_lemur/10_kHz_recordings", wl = 300, parallel = 1, bp = "frange", fast = F, threshold = 15, ovlp = 20)
+
+
+# set evaluation false
+opts_chunk$set(fig.width = 10, fig.height = 6, warning = FALSE, message = FALSE, tidy = TRUE)
+
+# ggplot global setting
+theme_set(theme_classic(base_size = 20))
+
+# to predict lemur songs using RF
+pred_FUN <- function(x, file, X) {
+    
+    print(file)
+    sub_detec <- X[grep(x, X$sound.files), ]
+    
+  # measure spectrographic parameters
+  spectral_parameters <- spectro_analysis(sub_detec, bp = c(1, 3.5), fast = TRUE, ovlp = 70, parallel = 1, pb = FALSE)
+  
+  # add time coordinates
+  spectral_parameters$start <- sub_detec$start
+  spectral_parameters$end <- sub_detec$end
+  spectral_parameters$scores <- sub_detec$scores
+    
+  spectral_parameters <- spectral_parameters[complete.cases(spectral_parameters),]
+
+  spectral_parameters$pred.class <- predict(object = rfm, data = spectral_parameters)$predictions
+
+    # keep only true positives
+  detected_calls_all_data <- spectral_parameters[ spectral_parameters$pred.class == "true.positive", c("sound.files", "selec",  "start", "end", "scores")]
+
+  # remove overlapping ones
+  filter_detected_calls_all_data <- overlapping_sels(detected_calls_all_data, pb = FALSE)
+  filter_detected_calls_all_data$ovlp.sels[is.na(filter_detected_calls_all_data$ovlp.sels)] <- -9999
+  
+  filter_detected_calls_all_data_list <- lapply(unique(filter_detected_calls_all_data$ovlp.sels), function(x){
+    
+    Y <- filter_detected_calls_all_data[filter_detected_calls_all_data$ovlp.sels == x, ]
+    if (x > 0) Y <- Y[which.max(Y$scores), ]
+    
+    return(Y)
+  })
+  
+  filter_detected_calls_all_data <- do.call(rbind, filter_detected_calls_all_data_list)
+  
+  saveRDS(detected_calls_all_data, file)  
+  }
+
+```
+
+
+## Apply automatic detection on all data
+```{r consolidate all acoustic data, eval = FALSE}
+
+cnsd_df <- consolidate(path = "/media/m/CHIRINO/Grabaciones SM4 2019/", dest.path = "/media/m/Agalychnis/Agalychnis_lemur/original_recordings", parallel = 14)
+
+fix_wavs(path = "/media/m/Agalychnis/Agalychnis_lemur/original_recordings", samp.rate = 10)
+
+
+# move converted_sound_files manually
+
+```
+
+```{r template correlation on all data, eval = FALSE}
+templates_est <- readRDS("./data/processed/mean_acoustic_parameter_templates_est.RDS")
+
+corr_templ <- template_correlator(templates = templates_est[templates_est$sound.files == "mean.PC1", , drop = FALSE],  path = "/media/m/Agalychnis/Agalychnis_lemur/10_kHz_recordings/", parallel = 1, hop.size = 11.6, ovlp = 70)
+
+saveRDS(corr_templ, "./data/processed/template_correlations_all_data.RDS")
+```
+
+```{r template detection on all data, eval = FALSE}
+corr_templ <- readRDS("./data/processed/template_correlations_all_data.RDS")
+
+all_detec <- template_detector(template.correlations = corr_templ, threshold = 0.43, parallel = 10, pb = TRUE)
+
+all_detec$template <- NULL
+all_detec$sound.files <- as.factor(all_detec$sound.files)
+
+saveRDS(all_detec, "./data/processed/template_detections_all_data.RDS")
+
+sukia_detec <- all_detec[grep("SUKIA", all_detec$sound.files), ]
+
+rownames(sukia_detec) <- 1:nrow(sukia_detec)
+saveRDS(sukia_detec, "./data/processed/template_detections_sukia_data.RDS")
+
+chimu_detec <- all_detec[grep("SUKIA", all_detec$sound.files, invert = TRUE), ]
+
+rownames(chimu_detec) <- 1:nrow(chimu_detec)
+
+saveRDS(chimu_detec, "./data/processed/template_detections_chimu_data.RDS")
+
+```
+
+```{r random forest classification sukia, eval = FALSE}
+
+sukia_detec <- readRDS("./data/processed/template_detections_sukia_data.RDS")
+
+rfm <- readRDS("./data/processed/data_and_model_random_forest_0.43_threshold_only_spectro_parameters.RDS")$rfm
+
+dates <- unique(sapply(as.character(sukia_detec$sound.files), function(x) strsplit(x, "_")[[1]][2]))
+
+
+# 388 dates
+out <- warbleR:::pblapply_wrblr_int(dates, pbar = TRUE, function(y){
+  
+  rds_file <- file.path("./data/detections", paste0("sukia_", y, ".RDS"))
+  
+  if (!file.exists(rds_file))
+    out <- try(pred_FUN(x = y, file = rds_file, X = sukia_detec), silent = TRUE)
+
+  })
+```
+
+```{r random forest classification chimu, eval = FALSE}
+
+chimu_detec <- readRDS("./data/processed/template_detections_chimu_data.RDS")
+
+rfm <- readRDS("./data/processed/data_and_model_random_forest_0.43_threshold_only_spectro_parameters.RDS")$rfm
+
+dates <- unique(sapply(as.character(chimu_detec$sound.files), function(x) strsplit(x, "_")[[1]][2]))
+
+out <- warbleR:::pblapply_wrblr_int(dates, pbar = TRUE, function(y){
+  
+  rds_file <- file.path("./data/detections", paste0("chimu_", y, ".RDS"))
+  
+  if (!file.exists(rds_file))
+    out <- try(pred_FUN(x = y, file = rds_file, X = chimu_detec), silent = TRUE)
+  # pred_FUN(x)
+  })
+```
+
+```{r pool detections, eval = FALSE}
+
+detec_rds_files <- list.files(path = "./data/detections", full.names = TRUE)
+
+detec_list <- pblapply(detec_rds_files, function(x) readRDS(x)[, c("sound.files", "selec", "start", "end")])
+
+detects <- do.call(rbind, detec_list)
+
+# add metdata
+detects$site <- sapply(as.character(detects$sound.files), function(x) strsplit(x, "_")[[1]][1])
+
+detects$date <- sapply(as.character(detects$sound.files), function(x) strsplit(x, "_")[[1]][2])
+detects$recording.time <- gsub("\\.wav", "", sapply(as.character(detects$sound.files), function(x) strsplit(x, "_")[[1]][3]))
+detects$date_time <- paste(detects$date, detects$recording.time, sep = "_")
+
+detects$date <- strptime(x = detects$date, format = "%Y%m%d")
+
+detects$recording.time <- format(strptime(x = detects$recording.time, format = "%H%M%S"), format = "%H%M%S")
+detects$call.time <- format(strptime(x = detects$recording.time, format = "%H%M%S") + apply(detects[, c("start", "end")], 1, mean), format = "%H%M%S")
+
+detects$rec_date_hour <- paste( sapply(as.character(detects$sound.files), function(x) strsplit(x, "_")[[1]][2]), substr(as.character(detects$call.time), 0 , 2), sep = "_")
+
+
+detects$recording.time <- times(detects$recording.time, format = "HMS")
+detects$call.time <- times(detects$call.time, format = "HMS")
+
+detects$call.time.num <- as.numeric(detects$call.time)  * 24
+
+write.csv(detects, "./data/detections_all_files.csv")
+
+```
+
+# get calls per hour (per site)
+```{r, eval = FALSE}
+
+detects <- read.csv("./data/detections_all_files.csv")
+
+# list all recordings
+all_files <- list.files(path = .Options$warbleR$path)
+site_date_time <- paste(sapply(as.character(all_files), function(x) strsplit(x, "_")[[1]][1]), sapply(as.character(all_files), function(x) strsplit(x, "_")[[1]][2]), gsub("\\.wav", "", sapply(as.character(all_files), function(x) strsplit(x, "_")[[1]][3])), sep = "_")
+
+# get for all date time combination the call rate, must be the porportion of the hour that was recorded and the number of call for that period
+
+out <- pblapply(unique(substr(site_date_time, 0, nchar(site_date_time) - 4)), cl = 20, function(x){
+
+  # get number of calls
+  n_call <- sum(detects$rec_date_hour == paste(strsplit(x, "_")[[1]][2], substr(strsplit(x, "_")[[1]][3], 0, 2), sep = "_") & grepl(substr(strsplit(x, "_")[[1]][1], 0, 8), x = detects$sound.files))
+  
+  files <- grep(x, all_files, value = TRUE)
+  
+  if (length(files) > 0) {
+    
+    durs <- duration_sound_files(files = files)
+  
+    prop_hour_recorded <- sum(durs$duration) / 3600
+    
+    call_rate <- if (n_call > 0)
+      n_call * prop_hour_recorded else 0
+  } else {call_rate <- NA
+  prop_hour_recorded <- NA
+  }
+
+  # rec_time in minutes
+  output <- data.frame(site_date_hour = paste0(x, "0000"), call_rate = call_rate, n_call = n_call, rec_time = if (!is.na(prop_hour_recorded)) prop_hour_recorded * 60 else NA)
+
+  return(output)
+  })
+
+
+call_rates <- do.call(rbind, out)
+
+
+call_rates$hour <- as.numeric(substr(sapply(call_rates$site_date_hour, function(x) strsplit(x, "_")[[1]][3]), 0, 2))
+call_rates$month <- as.numeric(substr(sapply(call_rates$site_date_hour, function(x) strsplit(x, "_")[[1]][2]), 5, 6))
+call_rates$year <- as.numeric(substr(sapply(call_rates$site_date_hour, function(x) strsplit(x, "_")[[1]][2]), 0, 4))
+call_rates$site <- sapply(call_rates$site_date_hour, function(x) strsplit(x, "_")[[1]][1])
+
+write.csv(call_rates, "./data/processed/call_rate_per_date_time_and_site.csv", row.names = FALSE)
+
+```
+
+#### Call rate during day hours by site
+
+Removing 5 pm data
+```{r, eval = TRUE}
+
+call_rates <- read.csv("./data/processed/call_rate_per_date_time_and_site.csv")
+
+# remove 5 pm data
+call_rates <- call_rates[call_rates$hour != 17, ]
+
+
+agg_hour_rate <- aggregate(call_rate ~ hour + site, data = call_rates, mean)
+
+agg_hour_rate$sd <-
+  aggregate(call_rate ~ hour + site, data = call_rates, sd)[, 3]
+
+agg_hour_rate$hour_factor <- factor(agg_hour_rate$hour, levels = c("17", "18", "19", "20", "21", "22", "23", "0", "1", "2", "3", "4")) 
+
+agg_hour_rate$site <- factor(agg_hour_rate$site, levels = c("SUKIA", "LAGCHIMU"))
+
+
+ggplot(agg_hour_rate, aes(x = hour_factor, y = call_rate, fill = site)) + 
+  geom_bar(stat = "identity", position = "identity", show.legend = FALSE) + 
+  geom_errorbar(aes(ymin = call_rate, ymax = call_rate + sd),
+                width = 0) +
+  scale_fill_viridis_d(alpha = 0.9, begin =  0.2, end = 0.7) + 
+  facet_wrap(~site)
+
+```
+
+#### Call rate during day hours by site and month
+```{r, eval = TRUE, fig.height=10}
+
+agg_hour_rate_month <- aggregate(call_rate ~ hour + month + site, data = call_rates, mean)
+
+agg_hour_rate_month$sd <-
+  aggregate(call_rate ~ hour + month + site, data = call_rates, sd)[, 4]
+
+agg_hour_rate_month$hour_factor <- factor(agg_hour_rate_month$hour, levels = c("17", "18", "19", "20", "21", "22", "23", "0", "1", "2", "3", "4")) 
+
+agg_hour_rate_month$month_factor <- as.factor(month.abb[agg_hour_rate_month$month])
+
+agg_hour_rate_month$month_factor <- factor(agg_hour_rate_month$month_factor, levels = month.abb)
+
+
+ggplot(agg_hour_rate_month, aes(x = hour_factor, y = call_rate, fill = site)) +   geom_bar(stat = "identity", position = "identity") +
+  geom_errorbar(aes(ymin = call_rate, ymax = call_rate + sd),
+                width = 0) +
+  scale_fill_viridis_d(alpha = 0.9, begin =  0.2, end = 0.7) +
+  labs(y = "Call rate (calls/ hour)", x = "Hour") +
+  facet_grid(month_factor ~ site) + 
+  theme_classic()
+
+ggplot(agg_hour_rate_month, aes(x = hour_factor, y = call_rate, fill = site)) +   geom_bar(stat = "identity", position = "identity") +
+  scale_fill_viridis_d(alpha = 0.9, begin =  0.2, end = 0.7) +
+  labs(y = "Call rate (calls/ hour)", x = "Hour") +
+  facet_grid(month_factor ~ site) + 
+  theme_classic()
+
+```
+
+#### Call rate during day hours by site and year
+```{r, eval = TRUE, fig.height=10, fig.width=12}
+
+agg_hour_rate_month <- aggregate(call_rate ~ hour + month + site + year, data = call_rates, mean)
+
+agg_hour_rate_month$sd <-
+  aggregate(call_rate ~ hour + month + site + year, data = call_rates, sd)[, 5]
+
+agg_hour_rate_month$hour_factor <- factor(agg_hour_rate_month$hour, levels = c("17", "18", "19", "20", "21", "22", "23", "0", "1", "2", "3", "4")) 
+
+agg_hour_rate_month$month_factor <- as.factor(month.abb[agg_hour_rate_month$month])
+
+agg_hour_rate_month$month_factor <- factor(agg_hour_rate_month$month_factor, levels = month.abb)
+
+ggplot(agg_hour_rate_month, aes(x = hour_factor, y = call_rate, fill = site)) +  geom_bar(stat = "identity", position = "identity") +
+  scale_fill_viridis_d(alpha = 0.9, begin =  0.2, end = 0.7) +
+  labs(y = "Call rate (calls/ hour)", x = "Hour") +
+  facet_grid(month_factor ~ site + year) + 
+  theme_classic()
+
+ggplot(agg_hour_rate_month[agg_hour_rate_month$year != "2021", ], aes(x = hour_factor, y = call_rate, fill = site)) +   geom_bar(stat = "identity", position = "identity") +
+  scale_fill_viridis_d(alpha = 0.9, begin =  0.2, end = 0.7) +
+  labs(y = "Call rate (calls/ hour)", x = "Hour") +
+  facet_grid(month_factor ~ site + year) + 
+  theme_classic()
+
+```
+
+Normalize to a maximum of 1 within site (to make them comparable across sites)
+
+```{r, eval = TRUE, fig.height=10, fig.width=12}
+
+agg_hour_rate_month$norm_call_rate <- ifelse(agg_hour_rate_month$site == "SUKIA",
+                                             agg_hour_rate_month$call_rate / max(agg_hour_rate_month$call_rate[agg_hour_rate_month$site == "SUKIA"]),
+                                             agg_hour_rate_month$call_rate / max(agg_hour_rate_month$call_rate[agg_hour_rate_month$site == "LAGCHIMU"])
+)
+
+ggplot(agg_hour_rate_month[agg_hour_rate_month$year != "2021", ], aes(x = hour_factor, y = norm_call_rate, fill = site)) +   geom_bar(stat = "identity", position = "identity") +
+  scale_fill_viridis_d(alpha = 0.9, begin =  0.2, end = 0.7) +
+  labs(y = "Normalize call rate", x = "Hour") +
+  facet_grid(month_factor ~ site + year) + 
+  theme_classic()
+
+
+```
+
+
+#### Number of recordings per month and site
+```{r, eval = FALSE}
+all_files <- list.files(path = .Options$warbleR$path)
+
+site_month <- data.frame(
+  site = sapply(as.character(all_files), function(x) strsplit(x, "_")[[1]][1]), 
+  month = as.numeric(substr(sapply(as.character(all_files), function(x) strsplit(x, "_")[[1]][2]), 5, 6)),
+  year = as.numeric(substr(sapply(as.character(all_files), function(x) strsplit(x, "_")[[1]][2]), 0, 4)))
+
+write.csv(site_month, "./data/processed/recordings_per_month_and_site.csv", row.names = FALSE)
+
+```
+
+
+```{r, eval = TRUE}
+
+site_month <- read.csv("./data/processed/recordings_per_month_and_site.csv")
+
+site_month$month_factor <- as.factor(month.abb[site_month$month])
+
+site_month$month_factor <- factor(site_month$month_factor, levels = month.abb)
+
+agg_site_month <- aggregate(month ~ month_factor + site + year, site_month, sum)
+
+
+ggplot(agg_site_month, aes(x = month_factor, y = month, fill = site)) +  geom_bar(stat = "identity", position = "identity", show.legend = FALSE) +
+  scale_fill_viridis_d(alpha = 0.9, begin =  0.2, end = 0.7) +
+  labs(y = "Number of recordings", x = "Month") +
+  facet_wrap( ~ site + year) +
+  theme_classic()
+
+
+```
+
+### Export raven selections to double-check detections
+
+```{r, eval = FALSE}
+# get those from sukia at 5pm and specific months
+sub_detects <- detects[grepl("SUKIA", detects$sound.files) & substr(detects$rec_date_hour, 10, 11) == "17" & substr(detects$rec_date_hour, 5, 6) %in% c("01", "02", "04", "05", "06") & substr(detects$rec_date_hour, 0, 4) == "2020" | grepl("SUKIA", detects$sound.files) & substr(detects$rec_date_hour, 10, 11) == "17" & substr(detects$rec_date_hour, 5, 6) %in% c("12") & substr(detects$rec_date_hour, 0, 4) == "2019",]
+
+sub_detects$bottom.freq <- 1
+sub_detects$top.freq <- 3.5
+
+exp_raven(X = sub_detects, sound.file.path = .Options$warbleR$path, path = "./data/processed/selection_tables/detection_double-check", file.name = "double_checking_detections")
+
+#fix_path(path =  "./data/processed/selection_tables/detection_double-check", new.begin.path = "/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/raw/sound_files/10_kHz_5_min_cuts/", sound.file.col = "Begin File")
+```
+
+
+<div class="alert alert-info">
+
+## Next steps
+
+- Align acoustic and climatic data by hour
+- Stats!
+
+</div>
+
+
+---
+
+<font size="4">Session information</font>
+
+```{r session info, echo=F, eval = TRUE}
+
+sessionInfo()
+
+```

@@ -1,0 +1,10 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	24.529361067	24.616205500	2289.646	2524.461	SUKIA_20191015_220000_5min_cut.wav	24.5294	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+2	Spectrogram 1	1	28.726782584	28.836785533	2342.569	2512.365	SUKIA_20191015_220000_5min_cut.wav	28.7268	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+3	Spectrogram 1	1	31.323856051	31.381752340	2298.274	2497.600	SUKIA_20191015_220000_5min_cut.wav	31.3239	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+4	Spectrogram 1	1	41.360163617	41.435428792	2202.302	2394.246	SUKIA_20191015_220000_5min_cut.wav	41.3602	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+5	Spectrogram 1	1	164.766894824	164.847949628	2335.186	2490.217	SUKIA_20191015_220000_5min_cut.wav	164.7669	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+6	Spectrogram 1	1	169.327311946	169.373628977	2305.301	2540.115	SUKIA_20191015_220000_5min_cut.wav	169.3273	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+7	Spectrogram 1	1	171.446316117	171.510002035	2320.955	2497.664	SUKIA_20191015_220000_5min_cut.wav	171.4463	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+8	Spectrogram 1	1	175.452604089	175.522079636	2276.127	2482.835	SUKIA_20191015_220000_5min_cut.wav	175.4526	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav
+9	Spectrogram 1	1	179.177317880	179.229424540	2298.274	2482.835	SUKIA_20191015_220000_5min_cut.wav	179.1773	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191015_220000_5min_cut.wav

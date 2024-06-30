@@ -1,0 +1,175 @@
+---
+title: "DAGs: A graphic approach to evaluate the causality for Lemur Analysis"
+author: "Fabiola Chirino"
+date: "6/11/2022"
+output: html_document
+---
+A causal model is a conceptual representation of the behaviour of a system (Wilson et al, 2021). Directed acyclic graphs (DAGs) can be used to estimate complex causal relationships in observational data. They also help us identify what co-variables must be included in the statistical model to estimate a relationship between the outcome and the predictor variables without introducing any bias.
+
+DAGs are composed of arrows and nodes (or variables) that must be created based on previous logic of the phenomenon of interest. In order to make well founded causal assumptions, DAGs need to fulfill the following requirements: 
+
+1- They cannot loop, that´s why we referred them as acyclic graphs. For practical purposes that means that there is a temporal ordering (Wilson et al, 2021). 
+
+2- Arrows can only point from a node to both the treatment or the outcome in that sense: 
+
+- If a treatment points another treatment (more than one arrow), those variables are probably correlated and it could be an indirect path of the first variable to estimate its effect on the response variable. 
+
+- If a treatment points the outcome that can be referred as the direct way to estimate the effect of that variable over the outcome.  
+
+3- You need to make sure that the effects that you want to measure do not have backdoor paths. A backdoor path is referred as a non-causal path from the treatment to the outcome.The backdoor criterion help us identify which non-causal paths to block. Graphically, we can identify backdoor paths as sequences of nodes and arrows with an arrow pointing to the predictor and response variable (Arif & MacNeil, 2022).
+The way you deal with backdoor paths is by choosing some variables that you can condition or stratify in order to block  pathways that don´t lead to causality.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) 
+```
+
+First, we install the R packages to create Directed Acyclic Graphs (DAGs)
+```{r}
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+```
+For our purpose some functions are more useful than others: 
+
+With the ggdag package we are focused in creating the structure of the graph. Each DAG is created based on causal paths in form of y ~ x + z and in terms of a DAG can be represented as y <- {x z}. With the ggplot package we customize the graph output.
+
+Some important arguments are: 
+
+- Exposure: a character vector for the exposure (or variable). 
+
+- Outcome: A character vector for the outcome (response variable).
+
+- Latent: A character vector for latent variables, the ones that are not measured within the data set but explain some pathways that lead to causality. 
+
+- Labels: The names of the nodes that are being represented in the DAG. 
+
+```{r}
+dag.l <- dagify(clouds ~ meanT, 
+                night_rain ~ clouds,
+                previous_rain ~ clouds, 
+                meanT ~ climate, 
+               Temperature ~ climate,
+               Temperature ~ night_rain,
+             
+               HR ~ night_rain,
+               Activity ~ HR,
+               Activity ~ Hour,
+               Activity ~ Moon,
+               Moon ~ Hour,
+               Temperature ~ Hour,
+               HR ~ Temperature,
+               HR ~ previous_rain,
+               HR ~ night_rain,
+               Activity ~ Temperature,
+               Activity ~ previous_rain,
+               Activity ~  night_rain,
+               labels = c("Activity" = "Call rate", "HR" = "Relative humidity","night_rain" = "Night Rain", "previous_rain" = "Previous Rain", "Moon" = "Moon", "Hour" = "Hour", "Temperature" = "Temperature", "meanT" = "Mean Temperature", "clouds" = "clouds", "climate" = "climate", latent = c("Clouds", "Climate"), outcome = "Activity"))
+
+ggdag(dag.l, text = FALSE, use_labels = "label") + theme_dag()
+```
+Al tratarse de variables climaticas que interactuan entre si al momento de afectar la actividad de canto de A. lemur el DAG expuesto considera estas relaciones. La variable latente catalogada como "clima" comprende al conjunto de factores climaticos (humedad, temperatura, viento y lluvia) que explican las condiciones locales del tiempo. En el presente gráfico el clima demuestra una asociación con la temperatura promedio previa y con la temperatura local y estas variables son un resultado de esta interacción de factores que controlan la dirección en la que se expresa la temperatura. 
+
+La temperatura puede afectar el comportamiento de la actividad de canto de las ranas de diferentes maneras. La primera es que al aumentar la temperatura en la atmósfera se da la formación de nubes (producto de la evaporación) que hacen que se produzca precipitación lo que tiende a afectar la humedad relativa y esta última variable puede afectar la actividad de canto. También al disminuir la temperatura local se provoca que aumente la humedad relativa y por lo tanto afecta la actividad de canto de manera inmediata (sin pasar necesariamente por la lluvia). De manera directa la temperatura puede aumentar la tasa metabólica de las ranas y lograr un incremento en su energía al momento de cantar (Wells, 2007; Kohler, 2015). 
+
+Cuando llueve, se incrementa la humedad relativa debido a la evaporacion y cuánto más llueve, más se incrementa la humedad relativa debido a que el aire atrae constantemente al agua. Tanto la lluvia previa como la lluvia a través de la noche ocasionan que la humedad relativa aumente en el ambiente y es posible que esto afecte a la actividad de canto debido a que ...... 
+
+La hora puede afectar la actividad de canto a través de 3 vías, la primera es una vía directa en que por rasgos biológicos de la rana, haya un pico de actividad diario que se explique por medio de mecanismos endógenos. El segundo involucra la asociación entre la hora y la temperatura ya que conforme anochece, la temperatura tiende a disminuir en el ambiente provocando que las condiciones locales de temperatura afecten la actividad de canto. Por último, la hora también incide a través de la luna ya que conforme anochece, se expresa el porcentaje luz emitido por la luna provocando diversos escenarios: si hay mucha luz posiblemente las ranas presenten fobia lunar y disminuyan su actividad de canto. Mientras que si hay poca luz, es posible que se incremente la actividad al no ser conspicuas por sus depredadores.
+
+
+### FROM QUESTIONS TO ACTION: How DAGs help you understand the relationships in your data set? 
+
+You can inspect how to evaluate your causal relationships with two functions ggdag_adjustment_set() and adjust_for(). The first function suggests which variables you can adjust for in order to block back-door paths. In simple words, the output suggests which variables can be included in the statistical model to avoid bias or non-causal pathways.
+
+Some useful arguments for ggdag_adjustment_set() are: 
+
+- .tdy_dag: input graph, object of class tidy_dagitty or dagitty. 
+
+- exposure: Character vector of the exposure variable. 
+
+- outcome: Character vector, the outcome variable
+
+- shadow: Logical, it shows the paths that are being blocked 
+
+On the other hand, adjust_for() accounts for the variables that must be incorporated in the analysis that block back-door paths. The output that is produced is very detailed, for our purposes we only care in the column "adjusted" to check if the variables we include in the model are expressed as "adjusted" and in the column circular must be FALSE that means that the DAGs is not looping. 
+
+Some important arguments in the function adjust_for() are: 
+
+- .tdy_dag: input graph, object of class tidy_dagitty or dagitty. 
+
+- var: Character vector, the variables that must be included in the analysis.
+
+
+The increase in relative humidity, decrease in temperature, increase in the previous accumulated rain, decrease in the night rain, decrease in the percentage of the moon illuminated cause the activity of A. lemur to increase?
+
+Complete model for all variables: call rate ~ Temperature + HR + night rain + previous rain + mean temperature + moon + hour
+
+```{r}
+ggdag_adjustment_set(dag.l, text = FALSE, exposure = c("Temperature", "HR", "night_rain", "previous_rain", "meanT",
+  "Moon"), outcome = "Activity", use_labels = "label", shadow = TRUE) + theme_dag() 
+
+adjustmentSets(dag.l, exposure = "Temperature", outcome = "Activity")
+
+adjust_for(dag.l, var = "Hour")
+
+```
+
+The increase in temperature at night causes that activity of A. lemur  to decrease?
+
+Model 1 for temperature: call rate ~ Hour + night rain + 12 h rain + Temperatura
+
+Model 2 for temperature:  call rate ~ Hour + night rain + 24 h rain + Temperatura
+
+```{r} 
+ggdag_adjustment_set(dag.l, text = FALSE, exposure = ("Temperature"), outcome = "Activity", use_labels = "label", shadow = TRUE) + theme_dag()
+
+adjust_for(dag.l, var = c("Hour", "night_rain", "previous_rain")) 
+
+```
+
+What is the effect of previous temperature on the call activity of A. lemur?
+```{r}
+ggdag_adjustment_set(dag.l, text = FALSE, exposure = c("meanT"), outcome = "Activity", use_labels = "label", shadow = TRUE) + theme_dag()
+
+#adjust_for(dag.l, var = c("Hour","night_rain")) 
+```
+Model for mean temperature: NO SE
+
+Does an increase in relative humidity cause the activity of A. lemur to increase?
+```{r}
+ggdag_adjustment_set(dag.l, text = FALSE, exposure = ("HR"), outcome = "Activity", use_labels = "label", shadow = TRUE) + theme_dag()
+
+adjust_for(dag.l, var = c("Temperature", "night_rain", "previous_rain")) 
+```
+Model 1 for HR: call rate ~ Temperature +  night rain + 12 h rain 
+
+Model 2 for HR: call rate ~ Temperature +  night rain + 24 h rain 
+
+Does an increase in the accumulated previous rain causes that A. lemur activity decreases? 
+```{r}
+ggdag_adjustment_set(dag.l, text = FALSE, exposure = ("previous_rain"), outcome = "Activity", use_labels = "label", shadow = TRUE) + theme_dag()
+
+adjust_for(dag.l, var = c("Temperature", "night_rain", "Hour")) 
+```
+Model 1 for previous_rain: call rate ~ Temperature + night rain + hour + 12 h rain 
+
+Model 2 for previous_rain: call rate ~ Temperature + night rain + hour + 24 h rain (es el mismo que con temperatura)
+
+Decreasing the percentage of the moon illuminated causes an increase in A. lemur activity? 
+```{r}
+ggdag_adjustment_set(dag.l, text = FALSE, exposure = ("Moon"), outcome = "Activity", use_labels = "label", shadow = TRUE) + theme_dag()
+
+adjust_for(dag.l, var = "Hour")
+```
+Model for moon: call rate ~ moon + hour
+
+If the night rain decreases can affect the A. lemur activity to increase? 
+```{r}
+ggdag_adjustment_set(dag.l, text = FALSE, exposure = ("night_rain"), outcome = "Activity", use_labels = "label", shadow = TRUE) + theme_dag()
+
+adjust_for(dag.l, var = c("meanT", "previous_rain"))
+```
+``
+Model 1 for night rain: call rate ~ meanT + 12 h rain + night rain 
+
+Model 2 for night rain: call rate ~ meanT + 24 h rain + night rain
+

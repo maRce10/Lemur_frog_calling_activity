@@ -1,0 +1,7 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	12.058400000	12.132514442	2057.100	2238.600	LAGCHIMU_20200306_030000_5min_cut.wav	12.0584	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200306_030000_5min_cut.wav
+2	Spectrogram 1	1	180.183800000	180.241444566	2010.900	2286.500	LAGCHIMU_20200306_030000_5min_cut.wav	180.1838	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200306_030000_5min_cut.wav
+3	Spectrogram 1	1	90.120071472	92.360174557	1797.774	2367.045	LAGCHIMU_20200306_030000_5min_cut.wav	90.1201	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200306_030000_5min_cut.wav
+4	Spectrogram 1	1	144.105622703	147.268514522	1821.494	2461.924	LAGCHIMU_20200306_030000_5min_cut.wav	144.1056	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200306_030000_5min_cut.wav
+5	Spectrogram 1	1	279.429215731	282.645602549	1837.307	2446.111	LAGCHIMU_20200306_030000_5min_cut.wav	279.4292	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200306_030000_5min_cut.wav
+6	Spectrogram 1	1	285.649461232	286.391704344	1963.812	2315.653	LAGCHIMU_20200306_030000_5min_cut.wav	285.6495	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\New folder\Lemur_files_2\LAGCHIMU_20200306_030000_5min_cut.wav

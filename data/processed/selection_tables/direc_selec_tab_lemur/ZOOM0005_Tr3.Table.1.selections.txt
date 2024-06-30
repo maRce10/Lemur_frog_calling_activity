@@ -1,0 +1,13 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Waveform 1	1	38.529086454	38.577255757	1638.554	2795.181	ZOOM0005_Tr3.WAV	38.5291	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+1	Spectrogram 1	1	38.529086454	38.577255757	1638.554	2795.181	ZOOM0005_Tr3.WAV	38.5291	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+2	Waveform 1	1	43.300059199	43.332810007	1590.361	2698.795	ZOOM0005_Tr3.WAV	43.3001	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+2	Spectrogram 1	1	43.300059199	43.332810007	1590.361	2698.795	ZOOM0005_Tr3.WAV	43.3001	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+3	Waveform 1	1	135.087407555	135.112881706	2048.193	2746.988	ZOOM0005_Tr3.WAV	135.0874	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+3	Spectrogram 1	1	135.087407555	135.112881706	2048.193	2746.988	ZOOM0005_Tr3.WAV	135.0874	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+4	Waveform 1	1	222.187263355	222.217369169	1951.807	2626.506	ZOOM0005_Tr3.WAV	222.1873	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+4	Spectrogram 1	1	222.187263355	222.217369169	1951.807	2626.506	ZOOM0005_Tr3.WAV	222.1873	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+5	Waveform 1	1	240.303317082	240.348707387	2078.724	2675.079	ZOOM0005_Tr3.WAV	240.3033	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+5	Spectrogram 1	1	240.303317082	240.348707387	2078.724	2675.079	ZOOM0005_Tr3.WAV	240.3033	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+6	Waveform 1	1	246.488754296	246.510986282	1253.012	3228.916	ZOOM0005_Tr3.WAV	246.4888	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV
+6	Spectrogram 1	1	246.488754296	246.510986282	1253.012	3228.916	ZOOM0005_Tr3.WAV	246.4888	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0005_Tr3.WAV

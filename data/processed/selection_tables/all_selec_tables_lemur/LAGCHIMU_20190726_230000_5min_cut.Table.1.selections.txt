@@ -1,0 +1,73 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Waveform 1	1	22.516924272	22.677193085	1910.582	2249.893	LAGCHIMU_20190726_230000_5min_cut.wav	22.5169	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+1	Spectrogram 1	1	22.516924272	22.677193085	1910.582	2249.893	LAGCHIMU_20190726_230000_5min_cut.wav	22.5169	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+1	Selection Spectrum 1	1	22.516924272	22.677193085	1910.582	2249.893	LAGCHIMU_20190726_230000_5min_cut.wav	22.5169	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+2	Waveform 1	1	25.448942686	25.583852034	2163.424	2323.001	LAGCHIMU_20190726_230000_5min_cut.wav	25.4489	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+2	Spectrogram 1	1	25.448942686	25.583852034	2163.424	2323.001	LAGCHIMU_20190726_230000_5min_cut.wav	25.4489	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+2	Selection Spectrum 1	1	25.448942686	25.583852034	2163.424	2323.001	LAGCHIMU_20190726_230000_5min_cut.wav	25.4489	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+3	Waveform 1	1	32.217742848	32.307808337	2155.830	2369.957	LAGCHIMU_20190726_230000_5min_cut.wav	32.2177	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+3	Spectrogram 1	1	32.217742848	32.307808337	2155.830	2369.957	LAGCHIMU_20190726_230000_5min_cut.wav	32.2177	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+3	Selection Spectrum 1	1	32.217742848	32.307808337	2155.830	2369.957	LAGCHIMU_20190726_230000_5min_cut.wav	32.2177	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+4	Waveform 1	1	36.182758297	36.419824552	2069.020	2343.857	LAGCHIMU_20190726_230000_5min_cut.wav	36.1828	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+4	Spectrogram 1	1	36.182758297	36.419824552	2069.020	2343.857	LAGCHIMU_20190726_230000_5min_cut.wav	36.1828	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+4	Selection Spectrum 1	1	36.182758297	36.419824552	2069.020	2343.857	LAGCHIMU_20190726_230000_5min_cut.wav	36.1828	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+5	Waveform 1	1	47.129015185	47.219386033	2113.276	2234.554	LAGCHIMU_20190726_230000_5min_cut.wav	47.1290	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+5	Spectrogram 1	1	47.129015185	47.219386033	2113.276	2234.554	LAGCHIMU_20190726_230000_5min_cut.wav	47.1290	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+5	Selection Spectrum 1	1	47.129015185	47.219386033	2113.276	2234.554	LAGCHIMU_20190726_230000_5min_cut.wav	47.1290	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+6	Waveform 1	1	51.085120888	51.138341404	2168.204	2330.029	LAGCHIMU_20190726_230000_5min_cut.wav	51.0851	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+6	Spectrogram 1	1	51.085120888	51.138341404	2168.204	2330.029	LAGCHIMU_20190726_230000_5min_cut.wav	51.0851	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+6	Selection Spectrum 1	1							
+7	Waveform 1	1	113.140518718	113.189645348	2079.461	2225.626	LAGCHIMU_20190726_230000_5min_cut.wav	113.1405	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+7	Spectrogram 1	1	113.140518718	113.189645348	2079.461	2225.626	LAGCHIMU_20190726_230000_5min_cut.wav	113.1405	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+7	Selection Spectrum 1	1							
+9	Waveform 1	1	130.117197723	130.196516761	2157.763	2288.268	LAGCHIMU_20190726_230000_5min_cut.wav	130.1172	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+9	Spectrogram 1	1	130.117197723	130.196516761	2157.763	2288.268	LAGCHIMU_20190726_230000_5min_cut.wav	130.1172	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+9	Selection Spectrum 1	1	130.117197723	130.196516761	2157.763	2288.268	LAGCHIMU_20190726_230000_5min_cut.wav	130.1172	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+10	Waveform 1	1	171.400010795	171.452207840	2157.763	2335.249	LAGCHIMU_20190726_230000_5min_cut.wav	171.4000	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+10	Spectrogram 1	1	171.400010795	171.452207840	2157.763	2335.249	LAGCHIMU_20190726_230000_5min_cut.wav	171.4000	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+10	Selection Spectrum 1	1							
+11	Waveform 1	1	173.826811591	173.898966329	2069.021	2277.827	LAGCHIMU_20190726_230000_5min_cut.wav	173.8268	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+11	Spectrogram 1	1	173.826811591	173.898966329	2069.021	2277.827	LAGCHIMU_20190726_230000_5min_cut.wav	173.8268	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+11	Selection Spectrum 1	1	173.826811591	173.898966329	2069.021	2277.827	LAGCHIMU_20190726_230000_5min_cut.wav	173.8268	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+12	Waveform 1	1	178.743697777	178.790777464	2189.084	2319.589	LAGCHIMU_20190726_230000_5min_cut.wav	178.7437	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+12	Spectrogram 1	1	178.743697777	178.790777464	2189.084	2319.589	LAGCHIMU_20190726_230000_5min_cut.wav	178.7437	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+12	Selection Spectrum 1	1							
+13	Waveform 1	1	181.098819831	181.154599026	2162.984	2319.589	LAGCHIMU_20190726_230000_5min_cut.wav	181.0988	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+13	Spectrogram 1	1	181.098819831	181.154599026	2162.984	2319.589	LAGCHIMU_20190726_230000_5min_cut.wav	181.0988	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+13	Selection Spectrum 1	1							
+14	Waveform 1	1	183.664729267	183.710273747	2006.378	2230.846	LAGCHIMU_20190726_230000_5min_cut.wav	183.6647	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+14	Spectrogram 1	1	183.664729267	183.710273747	2006.378	2230.846	LAGCHIMU_20190726_230000_5min_cut.wav	183.6647	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+14	Selection Spectrum 1	1							
+15	Waveform 1	1	187.342983006	187.380851450	2131.663	2387.451	LAGCHIMU_20190726_230000_5min_cut.wav	187.3430	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+15	Spectrogram 1	1	187.342983006	187.380851450	2131.663	2387.451	LAGCHIMU_20190726_230000_5min_cut.wav	187.3430	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+15	Selection Spectrum 1	1							
+16	Waveform 1	1	190.447127865	190.492160609	2110.782	2220.405	LAGCHIMU_20190726_230000_5min_cut.wav	190.4471	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+16	Spectrogram 1	1	190.447127865	190.492160609	2110.782	2220.405	LAGCHIMU_20190726_230000_5min_cut.wav	190.4471	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+16	Selection Spectrum 1	1							
+17	Waveform 1	1	192.541158795	192.619454362	2147.323	2324.809	LAGCHIMU_20190726_230000_5min_cut.wav	192.5412	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+17	Spectrogram 1	1	192.541158795	192.619454362	2147.323	2324.809	LAGCHIMU_20190726_230000_5min_cut.wav	192.5412	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+17	Selection Spectrum 1	1	192.541158795	192.619454362	2147.323	2324.809	LAGCHIMU_20190726_230000_5min_cut.wav	192.5412	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+18	Waveform 1	1	197.456387285	197.511143009	1922.856	2194.305	LAGCHIMU_20190726_230000_5min_cut.wav	197.4564	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+18	Spectrogram 1	1	197.456387285	197.511143009	1922.856	2194.305	LAGCHIMU_20190726_230000_5min_cut.wav	197.4564	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+18	Selection Spectrum 1	1							
+19	Waveform 1	1	206.180278108	206.224287381	2095.121	2236.066	LAGCHIMU_20190726_230000_5min_cut.wav	206.1803	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+19	Spectrogram 1	1	206.180278108	206.224287381	2095.121	2236.066	LAGCHIMU_20190726_230000_5min_cut.wav	206.1803	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+19	Selection Spectrum 1	1							
+20	Waveform 1	1	215.806612527	215.860344778	2162.984	2345.690	LAGCHIMU_20190726_230000_5min_cut.wav	215.8066	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+20	Spectrogram 1	1	215.806612527	215.860344778	2162.984	2345.690	LAGCHIMU_20190726_230000_5min_cut.wav	215.8066	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+20	Selection Spectrum 1	1							
+21	Waveform 1	1	219.502231693	219.549823116	2136.883	2303.928	LAGCHIMU_20190726_230000_5min_cut.wav	219.5022	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+21	Spectrogram 1	1	219.502231693	219.549823116	2136.883	2303.928	LAGCHIMU_20190726_230000_5min_cut.wav	219.5022	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+21	Selection Spectrum 1	1							
+22	Waveform 1	1	220.674084545	220.709906046	2126.442	2371.790	LAGCHIMU_20190726_230000_5min_cut.wav	220.6741	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+22	Spectrogram 1	1	220.674084545	220.709906046	2126.442	2371.790	LAGCHIMU_20190726_230000_5min_cut.wav	220.6741	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+22	Selection Spectrum 1	1							
+23	Waveform 1	1	222.180617743	222.245096445	2157.763	2314.369	LAGCHIMU_20190726_230000_5min_cut.wav	222.1806	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+23	Spectrogram 1	1	222.180617743	222.245096445	2157.763	2314.369	LAGCHIMU_20190726_230000_5min_cut.wav	222.1806	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+23	Selection Spectrum 1	1							
+24	Waveform 1	1	229.145562123	229.256864644	1954.177	2216.411	LAGCHIMU_20190726_230000_5min_cut.wav	229.1456	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+24	Spectrogram 1	1	229.145562123	229.256864644	1954.177	2216.411	LAGCHIMU_20190726_230000_5min_cut.wav	229.1456	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+24	Selection Spectrum 1	1	229.145562123	229.256864644	1954.177	2216.411	LAGCHIMU_20190726_230000_5min_cut.wav	229.1456	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+26	Waveform 1	1	117.016895093	117.156087211	2194.548	2372.578	LAGCHIMU_20190726_230000_5min_cut.wav	117.0169	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+26	Spectrogram 1	1	117.016895093	117.156087211	2194.548	2372.578	LAGCHIMU_20190726_230000_5min_cut.wav	117.0169	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav
+26	Selection Spectrum 1	1	117.016895093	117.156087211	2194.548	2372.578	LAGCHIMU_20190726_230000_5min_cut.wav	117.0169	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190726_230000_5min_cut.wav

@@ -1,0 +1,5 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Waveform 1	1	5.643181945	5.670093788	2096.386	3012.048	ZOOM0003_Tr1.WAV	5.6432	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0003_Tr1.WAV
+1	Spectrogram 1	1	5.643181945	5.670093788	2096.386	3012.048	ZOOM0003_Tr1.WAV	5.6432	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0003_Tr1.WAV
+2	Waveform 1	1	5.657176103	5.657176103	2409.639	2409.639	ZOOM0003_Tr1.WAV	5.6572	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0003_Tr1.WAV
+2	Spectrogram 1	1	5.657176103	5.657176103	2409.639	2409.639	ZOOM0003_Tr1.WAV	5.6572	/Volumes/CHIRINO/Proyecto Lemur/Grabaciones_direccionales/ZOOM0003_Tr1.WAV

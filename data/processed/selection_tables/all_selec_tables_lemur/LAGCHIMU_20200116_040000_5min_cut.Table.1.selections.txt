@@ -1,0 +1,7 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin Path	File Offset (s)	Begin File
+1	Waveform 1	1	34.531918044	34.587683554	2144.3	2468.5	D:\UCR\Bioacústica\Lemur_files_2\LAGCHIMU_20200116_040000_5min_cut.wav	34.5319	LAGCHIMU_20200116_040000_5min_cut.wav
+1	Spectrogram 1	1	34.531918044	34.587683554	2144.3	2468.5	D:\UCR\Bioacústica\Lemur_files_2\LAGCHIMU_20200116_040000_5min_cut.wav	34.5319	LAGCHIMU_20200116_040000_5min_cut.wav
+1	Selection Spectrum 1	1	34.531918044	34.587683554	2144.3	2468.5	D:\UCR\Bioacústica\Lemur_files_2\LAGCHIMU_20200116_040000_5min_cut.wav	34.5319	LAGCHIMU_20200116_040000_5min_cut.wav
+2	Waveform 1	1	221.280223527	221.335989038	2275.8	2620.2	D:\UCR\Bioacústica\Lemur_files_2\LAGCHIMU_20200116_040000_5min_cut.wav	221.2802	LAGCHIMU_20200116_040000_5min_cut.wav
+2	Spectrogram 1	1	221.280223527	221.335989038	2275.8	2620.2	D:\UCR\Bioacústica\Lemur_files_2\LAGCHIMU_20200116_040000_5min_cut.wav	221.2802	LAGCHIMU_20200116_040000_5min_cut.wav
+2	Selection Spectrum 1	1	221.280223527	221.335989038	2275.8	2620.2	D:\UCR\Bioacústica\Lemur_files_2\LAGCHIMU_20200116_040000_5min_cut.wav	221.2802	LAGCHIMU_20200116_040000_5min_cut.wav

@@ -1,0 +1,200 @@
+---
+title: "Statistical Analysis Lemur"
+author: "Fabiola Chirino"
+date: "3/28/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+
+library(readxl)
+
+clim_dat_2020 <- read_excel("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2020")
+
+clim_dat_2019 <- read_excel("/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2019")
+
+clim_dat <- rbind(clim_dat_2019, clim_dat_2020)
+
+clim_dat <- clim_dat[, c("filename", "Año", "Mes", "Día", "Hora", "Temp (°C)", "Humedad Relat.", "Precipitación")]
+
+names(clim_dat) <- c("filename", "year", "month", "day", "hour", "temp", "HR", "rain")
+
+clim_dat <- aggregate(cbind(rain, temp, HR) ~ filename + year + month + day + hour, clim_dat, mean)
+
+clim_dat$year <- clim_dat$year + 2000
+
+clim_dat$date <- as.Date(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"))
+
+
+clim_dat$date_hour <- paste(gsub("-", "", clim_dat$date), clim_dat$hour, sep = "-")
+
+call_dat <- read.csv("./data/processed/call_rate_per_date_time_and_site.csv")
+
+# remove 5 pm data and keep only form Sukia
+call_dat <- call_dat[call_dat$hour != 17, ]
+call_dat <- call_dat[call_dat$site != "LAGCHIMU", ]
+
+
+call_dat$date_hour <- paste(sapply(as.character(call_dat$site_date_hour), function(x) strsplit(x, "_")[[1]][2]), call_dat$hour, sep = "-") 
+
+
+call_dat$temp <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$temp[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+
+call_dat$HR <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$HR[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+
+call_dat$rain <- sapply(1:nrow(call_dat), function(x){
+  y <- clim_dat$rain[clim_dat$date_hour == call_dat$date_hour[x]]
+  
+  if (length(y) < 1) y <- NA
+  
+  return(y)
+  }
+  )
+
+# proportion of acoustic data with climatic data
+sum(call_dat$date_hour %in% clim_dat$date_hour) / nrow(call_dat)
+sum(!is.na(call_dat$temp)) / nrow(call_dat)
+
+
+call_dat <- call_dat[!is.na(call_dat$temp), ]
+
+call_dat$day <- as.numeric(substr(sapply(as.character(call_dat$site_date_hour), function(x) strsplit(x, "_")[[1]][2]), 7, 8))
+
+call_dat$date <- as.Date(paste(call_dat$year, call_dat$month, call_dat$day, sep = "-"))
+
+call_dat$moon.date <- ifelse(call_dat$hour < 12, as.Date(call_dat$date - 1), as.Date(call_dat$date))
+
+call_dat$moon.date <- as.Date(call_dat$moon.date, origin = "1960-01-02")
+
+## add moon
+library(lunar)
+
+call_dat$moonlight <- lunar.illumination(call_dat$moon.date, shift = -6)
+
+
+call_dat$date_hour_min <- strptime(paste(paste(call_dat$year, call_dat$month, call_dat$day, sep = "-"), paste(call_dat$hour, "00", sep = ":")), format="%Y-%m-%d  %H:%M")
+
+call_dat$hour_diff <- as.numeric(call_dat$date_hour_min - min(call_dat$date_hour_min)) / 3600
+
+
+call_dat$rain_24 <- sapply(1:nrow(call_dat), function(x) sum(call_dat$rain[strptime(call_dat$date, format="%Y-%m-%d") == (strptime(call_dat$date[x], format="%Y-%m-%d") - 60 * 60 * 24)]))
+
+call_dat$rain_48 <- sapply(1:nrow(call_dat), function(x) sum(call_dat$rain[strptime(call_dat$date, format="%Y-%m-%d") == (strptime(call_dat$date[x], format="%Y-%m-%d") - 60 * 60 * 48)]))
+
+write.csv(call_dat, "./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+```
+
+
+```{r}
+
+clim_dat_2020 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2020")
+
+clim_dat_2019 <- read_excel("./data/datos_metereologicos/Estacion_met/Dat_met_estacion_2022-01-11.xlsx",sheet = "2019")
+
+clim_dat <- rbind(clim_dat_2019, clim_dat_2020)
+
+clim_dat <- clim_dat[, c("filename", "Año", "Mes", "Día", "Hora", "Min1", "Temp (°C)", "Humedad Relat.", "Precipitación")]
+
+names(clim_dat) <- c("filename", "year", "month", "day", "hour","min", "temp", "HR", "rain")
+
+clim_dat$year <- clim_dat$year + 2000
+
+clim_dat$date <- as.Date(paste(clim_dat$year, clim_dat$month, clim_dat$day, sep = "-"))
+
+clim_dat$date_hour <- paste(gsub("-", "", clim_dat$date), clim_dat$hour, sep = "-")
+
+call_dat <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+
+sub_clim <- clim_dat[clim_dat$date_hour %in% unique(call_dat$date_hour), ]
+
+sub_clim$n_call <- sapply(sub_clim$date_hour, function(x)  call_dat$n_call[call_dat$date_hour == x])
+
+sub_clim$rec_time <- sapply(sub_clim$date_hour, function(x)  call_dat$rec_time[call_dat$date_hour == x])
+
+sub_clim$call_rate <- sapply(sub_clim$date_hour, function(x)  call_dat$call_rate[call_dat$date_hour == x])
+
+sub_clim$rain_24 <- sapply(sub_clim$date_hour, function(x)  call_dat$rain_24[call_dat$date_hour == x])
+
+sub_clim$rain_48 <- sapply(sub_clim$date_hour, function(x)  call_dat$rain_48[call_dat$date_hour == x])
+
+sub_clim$moonlight <- sapply(sub_clim$date_hour, function(x)  call_dat$moonlight[call_dat$date_hour == x])
+
+sub_clim$date_hour_min <- strptime(paste(paste(sub_clim$year, sub_clim$month, sub_clim$day, sep = "-"), paste(sub_clim$hour, sub_clim$min, sep = ":")), format="%Y-%m-%d  %H:%M")
+
+sub_clim$min_diff <- as.numeric(sub_clim$date_hour_min - min(sub_clim$date_hour_min)) / 60
+
+write.csv(sub_clim, "./data/processed/acoustic_and_climatic_data_by_min.csv", row.names = FALSE)
+
+```
+
+
+```{r stats by hour}
+
+library(brms)
+
+call_rate_hour <- read.csv("./data/processed/acoustic_and_climatic_data_by_hour.csv")
+call_rate_hour$hour <- factor(call_rate_hour$hour)
+
+
+# scale and mean-center
+call_rate_hour$sc_temp <- scale(call_rate_hour$temp)
+call_rate_hour$sc_HR <- scale(call_rate_hour$HR)
+call_rate_hour$sc_rain <- scale(call_rate_hour$rain)
+call_rate_hour$sc_rain_24 <- scale(call_rate_hour$rain_24)
+call_rate_hour$sc_rain_48 <- scale(call_rate_hour$rain_48)
+call_rate_hour$sc_moonlight <- scale(call_rate_hour$moonlight)
+
+fit2 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_24 + sc_rain_48  + ar(p = 2, time = hour_diff, gr = hour), data = call_rate_hour, chains = 1, family = poisson())
+
+fit2
+
+# without hour
+fit3 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_24 + sc_rain_48  + ar(p = 2, time = hour_diff), data = call_rate_hour, chains = 1, family = poisson())
+
+fit3
+```
+
+```{r stats by min}
+
+library(brms)
+
+call_rate_min <- read.csv("./data/processed/acoustic_and_climatic_data_by_min.csv")
+call_rate_min$hour <- factor(call_rate_min$hour)
+
+# scale and mean-center
+call_rate_min$sc_temp <- scale(call_rate_min$temp)
+call_rate_min$sc_HR <- scale(call_rate_min$HR)
+call_rate_min$sc_rain <- scale(call_rate_min$rain)
+call_rate_min$sc_rain_24 <- scale(call_rate_min$rain_24)
+call_rate_min$sc_rain_48 <- scale(call_rate_min$rain_48)
+call_rate_min$sc_moonlight <- scale(call_rate_min$moonlight)
+
+fit4 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_24 + sc_rain_48  + ar(p = 2, time = min_diff, gr = hour), data = call_rate_min, chains = 1, family = poisson())
+
+fit4
+
+# without hour
+fit5 <- brm(n_call | resp_rate(rec_time) ~  sc_temp + sc_HR + sc_moonlight + sc_rain + sc_rain_24 + sc_rain_48  + ar(p = 2, time = min_diff), data = call_rate_min, chains = 1, family = negbinomial())
+
+fit5
+
+```

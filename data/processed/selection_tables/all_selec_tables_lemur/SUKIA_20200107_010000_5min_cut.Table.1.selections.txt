@@ -1,0 +1,13 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin Path	File Offset (s)	Begin File
+1	Waveform 1	1	54.718818109	54.759553671	1943.2	2325.6	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	54.7188	SUKIA_20200107_010000_5min_cut.wav
+1	Spectrogram 1	1	54.718818109	54.759553671	1943.2	2325.6	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	54.7188	SUKIA_20200107_010000_5min_cut.wav
+1	Selection Spectrum 1	1	54.718818109	54.759553671	1943.2	2325.6	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	54.7188	SUKIA_20200107_010000_5min_cut.wav
+2	Waveform 1	1	58.990232733	59.042607027	2038.8	2337.2	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	58.9902	SUKIA_20200107_010000_5min_cut.wav
+2	Spectrogram 1	1	58.990232733	59.042607027	2038.8	2337.2	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	58.9902	SUKIA_20200107_010000_5min_cut.wav
+2	Selection Spectrum 1	1	58.990232733	59.042607027	2038.8	2337.2	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	58.9902	SUKIA_20200107_010000_5min_cut.wav
+3	Waveform 1	1	64.936391947	65.000404972	2293.7	2532.7	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	64.9364	SUKIA_20200107_010000_5min_cut.wav
+3	Spectrogram 1	1	64.936391947	65.000404972	2293.7	2532.7	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	64.9364	SUKIA_20200107_010000_5min_cut.wav
+3	Selection Spectrum 1	1	64.936391947	65.000404972	2293.7	2532.7	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	64.9364	SUKIA_20200107_010000_5min_cut.wav
+4	Waveform 1	1	66.624008079	66.676382373	2241.4	2415.9	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	66.6240	SUKIA_20200107_010000_5min_cut.wav
+4	Spectrogram 1	1	66.624008079	66.676382373	2241.4	2415.9	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	66.6240	SUKIA_20200107_010000_5min_cut.wav
+4	Selection Spectrum 1	1	66.624008079	66.676382373	2241.4	2415.9	D:\UCR\Bioacústica\Lemur_files_4\SUKIA_20200107_010000_5min_cut.wav	66.6240	SUKIA_20200107_010000_5min_cut.wav

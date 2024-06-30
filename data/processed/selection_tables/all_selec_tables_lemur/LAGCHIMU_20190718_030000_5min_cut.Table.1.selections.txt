@@ -1,0 +1,4 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	65.731784751	65.847577329	2192.583	2369.762	LAGCHIMU_20190718_030000_5min_cut.wav	65.7318	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190718_030000_5min_cut.wav
+2	Spectrogram 1	1	108.537391619	108.653184196	2199.966	2369.762	LAGCHIMU_20190718_030000_5min_cut.wav	108.5374	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190718_030000_5min_cut.wav
+3	Spectrogram 1	1	284.237951121	284.371112586	2111.377	2362.379	LAGCHIMU_20190718_030000_5min_cut.wav	284.2380	/Volumes/CHIRINO/Proyecto Lemur/INV_2021/5_min_cut_data/converted_sound_files/LAGCHIMU_20190718_030000_5min_cut.wav

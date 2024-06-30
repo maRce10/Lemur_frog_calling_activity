@@ -1,0 +1,4 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	67.913291444	67.962503289	2340.232	2465.734	SUKIA_20191011_030000_5min_cut.wav	67.9133	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191011_030000_5min_cut.wav
+2	Spectrogram 1	1	244.022917826	244.077919301	2214.731	2354.997	SUKIA_20191011_030000_5min_cut.wav	244.0229	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191011_030000_5min_cut.wav
+3	Spectrogram 1	1	251.178295942	251.221718158	2207.348	2391.909	SUKIA_20191011_030000_5min_cut.wav	251.1783	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/SUKIA_20191011_030000_5min_cut.wav

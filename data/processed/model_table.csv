@@ -1,0 +1,11 @@
+Variable;Estimate;CI_low;CI_high;Model
+Temperature_24h_rain;0.307;0.257;0.357;"""./data/processed/regression_models/temp2.1.rds"""
+Temperature_48h_rain;0.305;0.253;0.356;"""./data/processed/regression_models/temp2.2.rds"""
+Previous_Temperature;-0.016;-0.083;0.051;" ""./data/processed/regression_models/temp2.3.rds"""
+Relative_humidity_24h_rain;0.314;0.241;0.386;" ""./data/processed/regression_models/RH3.1.rds"""
+Relative_humidity_48h_rain;0.308;0.235;0.379;" ""./data/processed/regression_models/RH3.2.rds"""
+Moonlight;-0.128;-0.194;-0.063;"""./data/processed/regression_models/moon4.rds""."
+Night_Rain_48h_rain;0.018;-0.053;0.095;" ""./data/processed/regression_models/night_rain5.1.rds"""
+Night_Rain_24h_rain;0.024;-0.05;0.099;"""./data/processed/regression_models/night_rain5.2.rds"""
+Previous_48h_rain;-0.002;-0.038;0.035;"""./data/processed/regression_models/previous_rain6.1.rds""."
+Previous_24h_rain;0.082;0.045;0.121;"""./data/processed/regression_models/previous_rain6.2.rds"""

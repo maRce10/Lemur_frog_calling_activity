@@ -1,0 +1,2 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	187.677596110	187.752861286	1988.885	2260.334	LAGCHIMU_20190808_040000_5min_cut.wav	187.6776	/Users/fabiolachirino/Dropbox/Fabiola/proyecto_lemur/files/converted_sound_files/LAGCHIMU_20190808_040000_5min_cut.wav

@@ -1,0 +1,9 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	9.425534792	9.462431592	2166.8	2357.7	LAGCHIMU_20191125_230000_5min_cut.wav	9.4255	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav
+1	Selection Spectrum 1	1	9.425534792	9.462431592	2166.8	2357.7	LAGCHIMU_20191125_230000_5min_cut.wav	9.4255	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav
+2	Spectrogram 1	1	19.606379230	19.630977097	2120.7	2315.1	LAGCHIMU_20191125_230000_5min_cut.wav	19.6064	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav
+2	Selection Spectrum 1	1	19.606379230	19.630977097	2120.7	2315.1	LAGCHIMU_20191125_230000_5min_cut.wav	19.6064	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav
+3	Spectrogram 1	1	91.029988818	91.066885618	2173.6	2354.3	LAGCHIMU_20191125_230000_5min_cut.wav	91.0300	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav
+3	Selection Spectrum 1	1	91.029988818	91.066885618	2173.6	2354.3	LAGCHIMU_20191125_230000_5min_cut.wav	91.0300	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav
+4	Spectrogram 1	1	168.073796781	168.102494292	2122.4	2337.2	LAGCHIMU_20191125_230000_5min_cut.wav	168.0738	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav
+4	Selection Spectrum 1	1	168.073796781	168.102494292	2122.4	2337.2	LAGCHIMU_20191125_230000_5min_cut.wav	168.0738	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\LAGCHIMU_20191125_230000_5min_cut.wav

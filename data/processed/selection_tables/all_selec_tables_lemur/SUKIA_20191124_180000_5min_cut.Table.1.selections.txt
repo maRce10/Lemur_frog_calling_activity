@@ -1,0 +1,11 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	File Offset (s)	Begin Path
+1	Spectrogram 1	1	113.202594030	113.231291541	2043.4	2271.8	SUKIA_20191124_180000_5min_cut.wav	113.2026	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+1	Selection Spectrum 1	1	113.202594030	113.231291541	2043.4	2271.8	SUKIA_20191124_180000_5min_cut.wav	113.2026	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+2	Spectrogram 1	1	210.923591684	210.956388840	2249.6	2442.3	SUKIA_20191124_180000_5min_cut.wav	210.9236	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+2	Selection Spectrum 1	1	210.923591684	210.956388840	2249.6	2442.3	SUKIA_20191124_180000_5min_cut.wav	210.9236	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+3	Spectrogram 1	1	217.367737782	217.421033160	2210.4	2397.9	SUKIA_20191124_180000_5min_cut.wav	217.3677	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+3	Selection Spectrum 1	1	217.367737782	217.421033160	2210.4	2397.9	SUKIA_20191124_180000_5min_cut.wav	217.3677	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+4	Spectrogram 1	1	222.663380753	222.712576487	2348.5	2573.5	SUKIA_20191124_180000_5min_cut.wav	222.6634	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+4	Selection Spectrum 1	1	222.663380753	222.712576487	2348.5	2573.5	SUKIA_20191124_180000_5min_cut.wav	222.6634	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+5	Spectrogram 1	1	226.890114179	226.931110623	2345.1	2519.0	SUKIA_20191124_180000_5min_cut.wav	226.8901	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
+5	Selection Spectrum 1	1	226.890114179	226.931110623	2345.1	2519.0	SUKIA_20191124_180000_5min_cut.wav	226.8901	C:\Users\JORGE\Documents\Asistencia CIN\Proyecto Agalychnis Lemur\Grabaciones\SUKIA_20191124_180000_5min_cut.wav
